@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
-import { ShieldAlert, Trash2, UserPlus, Crown } from "lucide-react";
+import { ShieldAlert, Trash2, UserPlus, Crown, MailCheck, Ban } from "lucide-react";
 import { toast } from "sonner";
 import type { Enums } from "@/integrations/supabase/types";
 
@@ -23,17 +23,16 @@ export default function SuperAdmin() {
   const { user, isSuperAdmin, loading } = useAuth();
   const queryClient = useQueryClient();
   const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newApprovedEmail, setNewApprovedEmail] = useState("");
 
   const { data: usersWithRoles = [] } = useQuery({
     queryKey: ["super-admin-users"],
     queryFn: async (): Promise<UserWithRole[]> => {
-      // Get all roles
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("id, user_id, role, created_at");
       if (rolesError) throw rolesError;
 
-      // Get profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("user_id, display_name");
@@ -50,6 +49,73 @@ export default function SuperAdmin() {
       }));
     },
     enabled: isSuperAdmin,
+  });
+
+  // Approved emails query
+  const { data: approvedEmails = [] } = useQuery({
+    queryKey: ["approved-emails"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("approved_emails")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSuperAdmin,
+  });
+
+  // Blocked users query
+  const { data: blockedUsers = [] } = useQuery({
+    queryKey: ["blocked-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blocked_users")
+        .select("*")
+        .order("blocked_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSuperAdmin,
+  });
+
+  const addApprovedEmail = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("approved_emails")
+        .insert({ email: newApprovedEmail.toLowerCase().trim() });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Email approved for sign-in");
+      setNewApprovedEmail("");
+      queryClient.invalidateQueries({ queryKey: ["approved-emails"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeApprovedEmail = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("approved_emails").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Email removed from approved list");
+      queryClient.invalidateQueries({ queryKey: ["approved-emails"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const unblockUser = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("blocked_users").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("User unblocked");
+      queryClient.invalidateQueries({ queryKey: ["blocked-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const updateRole = useMutation({
@@ -81,7 +147,6 @@ export default function SuperAdmin() {
 
   const addAdmin = useMutation({
     mutationFn: async () => {
-      // Find user by email in profiles (display_name might be email)
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, display_name")
@@ -93,7 +158,6 @@ export default function SuperAdmin() {
 
       const targetUserId = profiles[0].user_id;
 
-      // Check if already has admin role
       const { data: existing } = await supabase
         .from("user_roles")
         .select("id")
@@ -104,7 +168,6 @@ export default function SuperAdmin() {
         throw new Error("User is already an admin.");
       }
 
-      // Update existing role to admin
       const { error } = await supabase
         .from("user_roles")
         .update({ role: "admin" as AppRole })
@@ -121,7 +184,7 @@ export default function SuperAdmin() {
   });
 
   if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/" replace />;
   if (!isSuperAdmin) return <Navigate to="/" replace />;
 
   const admins = usersWithRoles.filter((u) => u.role === "admin" || u.role === "super_admin");
@@ -138,6 +201,83 @@ export default function SuperAdmin() {
           </div>
           <p className="text-sm font-mono text-muted-foreground">Full control over users, roles, and system configuration</p>
         </motion.div>
+
+        {/* Approved Emails Management */}
+        <div className="glass-panel p-6">
+          <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+            <MailCheck className="w-4 h-4" /> Approved Emails ({approvedEmails.length})
+          </h2>
+          <form
+            onSubmit={(e) => { e.preventDefault(); addApprovedEmail.mutate(); }}
+            className="flex gap-3 mb-4"
+          >
+            <input
+              placeholder="Email to approve for sign-in"
+              type="email"
+              value={newApprovedEmail}
+              onChange={(e) => setNewApprovedEmail(e.target.value)}
+              required
+              className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button
+              type="submit"
+              disabled={addApprovedEmail.isPending}
+              className="bg-primary text-primary-foreground rounded-lg px-4 py-2 text-sm font-mono font-semibold hover:opacity-90 disabled:opacity-50"
+            >
+              {addApprovedEmail.isPending ? "..." : "Approve"}
+            </button>
+          </form>
+          <div className="space-y-1">
+            {approvedEmails.map((ae: any) => (
+              <div key={ae.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-secondary/50 text-xs font-mono">
+                <span className="text-foreground">{ae.email}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">{new Date(ae.created_at).toLocaleDateString()}</span>
+                  <button onClick={() => removeApprovedEmail.mutate(ae.id)} className="text-destructive hover:opacity-80">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Blocked Users */}
+        <div className="glass-panel p-6">
+          <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+            <Ban className="w-4 h-4 text-destructive" /> Blocked Users ({blockedUsers.length})
+          </h2>
+          {blockedUsers.length === 0 ? (
+            <p className="text-xs font-mono text-muted-foreground">No blocked users</p>
+          ) : (
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border">
+                  <th className="text-left py-2 px-2">Email</th>
+                  <th className="text-left py-2 px-2">IP Address</th>
+                  <th className="text-left py-2 px-2">Attempts</th>
+                  <th className="text-left py-2 px-2">Blocked At</th>
+                  <th className="text-right py-2 px-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {blockedUsers.map((bu: any) => (
+                  <tr key={bu.id} className="border-b border-border/50">
+                    <td className="py-2 px-2 text-foreground">{bu.email}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{bu.ip_address || "unknown"}</td>
+                    <td className="py-2 px-2 text-destructive">{bu.attempt_count}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{new Date(bu.blocked_at).toLocaleString()}</td>
+                    <td className="py-2 px-2 text-right">
+                      <button onClick={() => unblockUser.mutate(bu.id)} className="text-primary hover:opacity-80 text-xs">
+                        Unblock
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
 
         {/* Add Admin */}
         <div className="glass-panel p-6">
@@ -190,7 +330,7 @@ export default function SuperAdmin() {
                   </td>
                   <td className="py-2 px-2 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
                   <td className="py-2 px-2 text-right">
-                    {u.user_id !== user?.id && u.role !== "super_admin" && (
+                    {u.role !== "super_admin" && (
                       <div className="flex items-center gap-2 justify-end">
                         <select
                           defaultValue={u.role}

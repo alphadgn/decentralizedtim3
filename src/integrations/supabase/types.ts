@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      approved_emails: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      blocked_users: {
+        Row: {
+          attempt_count: number
+          blocked_at: string
+          email: string
+          id: string
+          ip_address: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          blocked_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          blocked_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+        }
+        Relationships: []
+      }
       node_registrations: {
         Row: {
           created_at: string
