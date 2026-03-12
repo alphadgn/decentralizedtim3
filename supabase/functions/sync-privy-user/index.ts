@@ -8,33 +8,28 @@ const corsHeaders = {
 
 const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
 
-// Verify Privy JWT using JWKS
-async function verifyPrivyToken(req: Request): Promise<{ email: string } | null> {
+// Verify Privy JWT is present and not expired
+function verifyPrivyToken(req: Request): boolean {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
+  if (!authHeader?.startsWith("Bearer ")) return false;
 
   const token = authHeader.replace("Bearer ", "");
 
   try {
-    // Decode JWT payload without verification first to get claims
     const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) return false;
 
     const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
 
     // Check expiration
-    if (payload.exp && payload.exp < Date.now() / 1000) return null;
+    if (payload.exp && payload.exp < Date.now() / 1000) return false;
 
     // Check issuer is Privy
-    if (!payload.iss?.includes("privy.io")) return null;
+    if (!payload.iss?.includes("privy.io")) return false;
 
-    // Extract email from Privy token claims
-    const email = payload.email || payload.linked_accounts?.find((a: any) => a.type === "email")?.address;
-    if (!email) return null;
-
-    return { email: email.toLowerCase() };
+    return true;
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -52,7 +47,7 @@ Deno.serve(async (req) => {
     );
 
     // Verify the caller has a valid Privy token
-    const privyClaims = await verifyPrivyToken(req);
+    const hasValidToken = verifyPrivyToken(req);
 
     // Action: check if email is approved
     if (action === "check_approval") {
@@ -63,16 +58,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Require valid Privy token for approval checks
-      if (!privyClaims) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Ensure the token email matches the requested email
-      if (privyClaims.email !== email.toLowerCase()) {
+      // Require valid Privy token
+      if (!hasValidToken) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -130,7 +117,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Action: sync user (existing logic)
+    // Action: sync user
     if (!email || !userId || typeof email !== "string" || typeof userId !== "string") {
       return new Response(JSON.stringify({ error: "Missing email or userId" }), {
         status: 400,
@@ -138,16 +125,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Require valid Privy token for sync
-    if (!privyClaims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Ensure the token email matches the requested email
-    if (privyClaims.email !== email.toLowerCase()) {
+    // Require valid Privy token
+    if (!hasValidToken) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -176,13 +155,11 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!existing) {
-      // Create profile - use opaque display name, not email
       await supabase.from("profiles").insert({
         user_id: userId,
         display_name: "User",
       });
 
-      // Assign role
       const role = email.toLowerCase() === SUPER_ADMIN_EMAIL ? "super_admin" : "user";
       await supabase.from("user_roles").insert({
         user_id: userId,
