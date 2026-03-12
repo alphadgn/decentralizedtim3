@@ -17,12 +17,12 @@ interface AuthState {
 const BLOCKED_KEY = "dgtn_blocked";
 
 export function useAuth() {
-  const { user: privyUser, authenticated, login, logout, ready } = usePrivy();
+  const { user: privyUser, authenticated, login, logout, ready, getAccessToken } = usePrivy();
   const [state, setState] = useState<AuthState>({
     role: null,
     loading: true,
     userId: null,
-    blocked: localStorage.getItem(BLOCKED_KEY) === "true",
+    blocked: false,
     unauthorized: false,
     attemptCount: 0,
   });
