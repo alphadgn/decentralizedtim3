@@ -47,9 +47,9 @@ export default function NodeOperator() {
 
   const registerNode = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error("Not authenticated");
+      if (!userId) throw new Error("Not authenticated");
       const { error } = await supabase.from("node_registrations").insert({
-        user_id: user.id,
+        user_id: userId,
         node_name: nodeName,
         region,
         endpoint_url: endpoint || null,
