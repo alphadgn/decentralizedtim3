@@ -51,6 +51,7 @@ export function useAuth() {
       const attempts = approvalData?.attempts ?? 1;
       const isBlocked = approvalData?.blocked ?? attempts >= 2;
 
+      // localStorage used as UX hint only, not security gate
       if (isBlocked) {
         localStorage.setItem(BLOCKED_KEY, "true");
       }
