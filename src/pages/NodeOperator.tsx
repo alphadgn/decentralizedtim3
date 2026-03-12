@@ -24,7 +24,7 @@ function generateNodeMetrics() {
 const METRICS = generateNodeMetrics();
 
 export default function NodeOperator() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userId, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [nodeName, setNodeName] = useState("");
