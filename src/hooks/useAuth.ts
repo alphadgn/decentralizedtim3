@@ -35,17 +35,16 @@ export function useAuth() {
       return;
     }
 
-    // Check if user is already permanently blocked locally
-    if (localStorage.getItem(BLOCKED_KEY) === "true") {
-      await logout();
-      setState((prev) => ({ ...prev, role: null, loading: false, userId: null, blocked: true }));
-      return;
-    }
+    // Get Privy access token for authenticated requests
+    const accessToken = await getAccessToken();
 
     // Step 1: Check if email is approved via edge function
     const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
       "sync-privy-user",
-      { body: { email, action: "check_approval" } }
+      {
+        body: { email, action: "check_approval" },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      }
     );
 
     if (approvalError || !approvalData?.approved) {
