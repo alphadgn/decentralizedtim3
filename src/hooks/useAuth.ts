@@ -60,6 +60,7 @@ export function useAuth() {
 
   return {
     user: authenticated ? privyUser : null,
+    userId: state.userId,
     session: null,
     role: state.role,
     loading: !ready || state.loading,
