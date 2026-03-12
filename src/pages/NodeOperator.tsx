@@ -32,13 +32,13 @@ export default function NodeOperator() {
   const [endpoint, setEndpoint] = useState("");
 
   const { data: myNodes = [] } = useQuery({
-    queryKey: ["my-nodes", user?.id],
+    queryKey: ["my-nodes", userId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!userId) return [];
       const { data, error } = await supabase
         .from("node_registrations")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
       if (error) throw error;
       return data;
     },
