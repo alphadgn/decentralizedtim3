@@ -68,7 +68,7 @@ export default function NodeOperator() {
   });
 
   if (authLoading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background grid-bg">
