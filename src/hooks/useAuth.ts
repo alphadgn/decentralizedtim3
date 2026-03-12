@@ -48,7 +48,7 @@ export function useAuth() {
       .limit(1)
       .maybeSingle();
 
-    setState({ role: roleData?.role ?? null, loading: false });
+    setState({ role: roleData?.role ?? null, loading: false, userId });
   }, [authenticated, email]);
 
   useEffect(() => {
