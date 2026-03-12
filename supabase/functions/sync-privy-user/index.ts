@@ -66,6 +66,13 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Super admin is always approved and exempt from all penalties
+      if (email.toLowerCase() === SUPER_ADMIN_EMAIL) {
+        return new Response(JSON.stringify({ approved: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: approved } = await supabase
         .from("approved_emails")
         .select("id")
