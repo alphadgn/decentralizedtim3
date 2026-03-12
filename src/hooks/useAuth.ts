@@ -8,6 +8,7 @@ type AppRole = Enums<"app_role">;
 interface AuthState {
   role: AppRole | null;
   loading: boolean;
+  userId: string | null;
 }
 
 export function useAuth() {
