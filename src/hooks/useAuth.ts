@@ -19,7 +19,7 @@ export function useAuth() {
 
   const syncRole = useCallback(async () => {
     if (!authenticated || !email) {
-      setState({ role: null, loading: false });
+      setState({ role: null, loading: false, userId: null });
       return;
     }
 
