@@ -9,24 +9,70 @@ interface AuthState {
   role: AppRole | null;
   loading: boolean;
   userId: string | null;
+  blocked: boolean;
+  unauthorized: boolean;
+  attemptCount: number;
 }
+
+const BLOCKED_KEY = "dgtn_blocked";
 
 export function useAuth() {
   const { user: privyUser, authenticated, login, logout, ready } = usePrivy();
-  const [state, setState] = useState<AuthState>({ role: null, loading: true, userId: null });
+  const [state, setState] = useState<AuthState>({
+    role: null,
+    loading: true,
+    userId: null,
+    blocked: localStorage.getItem(BLOCKED_KEY) === "true",
+    unauthorized: false,
+    attemptCount: 0,
+  });
 
   const email = privyUser?.email?.address ?? null;
 
   const syncRole = useCallback(async () => {
     if (!authenticated || !email) {
-      setState({ role: null, loading: false, userId: null });
+      setState((prev) => ({ ...prev, role: null, loading: false, userId: null, unauthorized: false }));
       return;
     }
 
-    // Use a deterministic UUID based on email for consistency
+    // Check if user is already permanently blocked locally
+    if (localStorage.getItem(BLOCKED_KEY) === "true") {
+      await logout();
+      setState((prev) => ({ ...prev, role: null, loading: false, userId: null, blocked: true }));
+      return;
+    }
+
+    // Step 1: Check if email is approved via edge function
+    const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
+      "sync-privy-user",
+      { body: { email, action: "check_approval" } }
+    );
+
+    if (approvalError || !approvalData?.approved) {
+      const attempts = approvalData?.attempts ?? 1;
+      const isBlocked = approvalData?.blocked ?? attempts >= 2;
+
+      if (isBlocked) {
+        localStorage.setItem(BLOCKED_KEY, "true");
+      }
+
+      // Sign them out immediately
+      await logout();
+
+      setState({
+        role: null,
+        loading: false,
+        userId: null,
+        blocked: isBlocked,
+        unauthorized: true,
+        attemptCount: attempts,
+      });
+      return;
+    }
+
+    // Step 2: Approved — sync profile & role
     const userId = await emailToUuid(email);
 
-    // Check if profile exists
     const { data: profile } = await supabase
       .from("profiles")
       .select("user_id")
@@ -34,13 +80,11 @@ export function useAuth() {
       .maybeSingle();
 
     if (!profile) {
-      // Create profile + role via edge function (bypasses RLS)
       await supabase.functions.invoke("sync-privy-user", {
         body: { email, userId },
       });
     }
 
-    // Fetch role
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
@@ -48,7 +92,14 @@ export function useAuth() {
       .limit(1)
       .maybeSingle();
 
-    setState({ role: roleData?.role ?? null, loading: false, userId });
+    setState({
+      role: roleData?.role ?? null,
+      loading: false,
+      userId,
+      blocked: false,
+      unauthorized: false,
+      attemptCount: 0,
+    });
   }, [authenticated, email]);
 
   useEffect(() => {
@@ -59,7 +110,7 @@ export function useAuth() {
   const isSuperAdmin = state.role === "super_admin";
 
   return {
-    user: authenticated ? privyUser : null,
+    user: authenticated && !state.unauthorized && !state.blocked ? privyUser : null,
     userId: state.userId,
     session: null,
     role: state.role,
@@ -68,10 +119,12 @@ export function useAuth() {
     signOut: logout,
     isAdmin,
     isSuperAdmin,
+    blocked: state.blocked,
+    unauthorized: state.unauthorized,
+    attemptCount: state.attemptCount,
   };
 }
 
-// Deterministic UUID v5-like from email (simple hash approach)
 async function emailToUuid(email: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(email);
@@ -79,7 +132,6 @@ async function emailToUuid(email: string): Promise<string> {
   const hex = Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  // Format as UUID
   return [
     hex.slice(0, 8),
     hex.slice(8, 12),

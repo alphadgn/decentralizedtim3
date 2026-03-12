@@ -14,8 +14,76 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, userId } = await req.json();
+    const { email, userId, action } = await req.json();
 
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Action: check if email is approved (no userId needed)
+    if (action === "check_approval") {
+      if (!email) {
+        return new Response(JSON.stringify({ error: "Missing email" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: approved } = await supabase
+        .from("approved_emails")
+        .select("id")
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (!approved) {
+        // Get IP from request headers
+        const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          req.headers.get("cf-connecting-ip") || "unknown";
+
+        // Check if already blocked
+        const { data: existing } = await supabase
+          .from("blocked_users")
+          .select("id, attempt_count")
+          .eq("email", email.toLowerCase())
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("blocked_users")
+            .update({ attempt_count: existing.attempt_count + 1, ip_address: ip })
+            .eq("id", existing.id);
+
+          return new Response(JSON.stringify({
+            approved: false,
+            attempts: existing.attempt_count + 1,
+            blocked: existing.attempt_count + 1 >= 2,
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } else {
+          await supabase
+            .from("blocked_users")
+            .insert({ email: email.toLowerCase(), ip_address: ip, attempt_count: 1 });
+
+          return new Response(JSON.stringify({
+            approved: false,
+            attempts: 1,
+            blocked: false,
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ approved: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Action: sync user (existing logic)
     if (!email || !userId) {
       return new Response(JSON.stringify({ error: "Missing email or userId" }), {
         status: 400,
@@ -23,10 +91,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Double-check approval before syncing
+    const { data: approvedCheck } = await supabase
+      .from("approved_emails")
+      .select("id")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
+
+    if (!approvedCheck) {
+      return new Response(JSON.stringify({ error: "Email not approved" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Check if profile already exists
     const { data: existing } = await supabase
