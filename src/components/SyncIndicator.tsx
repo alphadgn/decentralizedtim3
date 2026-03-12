@@ -4,13 +4,13 @@ import { useNetworkTime } from "@/hooks/useNetworkTime";
 export function SyncIndicator() {
   const { offset, syncStatus, lastSync, epoch } = useNetworkTime();
   const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const localTime = new Date(epoch).toLocaleTimeString("en-US", {
+  const d = new Date(epoch);
+  const localTime = d.toLocaleTimeString("en-US", {
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    fractionalSecondDigits: 3,
-  });
+  }) + "." + d.getMilliseconds().toString().padStart(3, "0");
 
   return (
     <motion.div
