@@ -80,8 +80,10 @@ export function useAuth() {
       .maybeSingle();
 
     if (!profile) {
+      const accessToken2 = await getAccessToken();
       await supabase.functions.invoke("sync-privy-user", {
         body: { email, userId },
+        headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
       });
     }
 

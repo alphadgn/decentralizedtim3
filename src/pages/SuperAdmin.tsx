@@ -150,7 +150,7 @@ export default function SuperAdmin() {
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, display_name")
-        .ilike("display_name", newAdminEmail);
+        .eq("display_name", newAdminEmail.toLowerCase().trim());
 
       if (!profiles || profiles.length === 0) {
         throw new Error("User not found. They must sign up first.");
