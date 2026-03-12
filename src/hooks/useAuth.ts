@@ -13,7 +13,7 @@ interface AuthState {
 
 export function useAuth() {
   const { user: privyUser, authenticated, login, logout, ready } = usePrivy();
-  const [state, setState] = useState<AuthState>({ role: null, loading: true });
+  const [state, setState] = useState<AuthState>({ role: null, loading: true, userId: null });
 
   const email = privyUser?.email?.address ?? null;
 
