@@ -24,7 +24,7 @@ function generateNodeMetrics() {
 const METRICS = generateNodeMetrics();
 
 export default function NodeOperator() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userId, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [nodeName, setNodeName] = useState("");
@@ -32,24 +32,24 @@ export default function NodeOperator() {
   const [endpoint, setEndpoint] = useState("");
 
   const { data: myNodes = [] } = useQuery({
-    queryKey: ["my-nodes", user?.id],
+    queryKey: ["my-nodes", userId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!userId) return [];
       const { data, error } = await supabase
         .from("node_registrations")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!userId,
   });
 
   const registerNode = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error("Not authenticated");
+      if (!userId) throw new Error("Not authenticated");
       const { error } = await supabase.from("node_registrations").insert({
-        user_id: user.id,
+        user_id: userId,
         node_name: nodeName,
         region,
         endpoint_url: endpoint || null,
@@ -68,7 +68,7 @@ export default function NodeOperator() {
   });
 
   if (authLoading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background grid-bg">
