@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X } from "lucide-react";
+import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export function Header() {
-  const { user, isAdmin, isSuperAdmin, signOut, login } = useAuth();
+  const { user, isAdmin, isSuperAdmin, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // If blocked, hide navbar entirely
+  if (blocked) return null;
 
   const handleSignOut = async () => {
     await signOut();
@@ -54,60 +57,81 @@ export function Header() {
   );
 
   return (
-    <motion.header
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="border-b border-border/50 backdrop-blur-xl sticky top-0 z-50"
-      style={{ background: "hsl(var(--background) / 0.8)" }}
-    >
-      <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-primary" />
-            <span className="font-mono text-sm font-semibold tracking-wider text-foreground">
-              DGTN
+    <>
+      <motion.header
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="border-b border-border/50 backdrop-blur-xl sticky top-0 z-50"
+        style={{ background: "hsl(var(--background) / 0.8)" }}
+      >
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3">
+              <Globe className="w-5 h-5 text-primary" />
+              <span className="font-mono text-sm font-semibold tracking-wider text-foreground">
+                DGTN
+              </span>
+            </Link>
+            <span className="text-xs font-mono text-muted-foreground hidden sm:inline">
+              Decentralized Global Time Network
             </span>
-          </Link>
-          <span className="text-xs font-mono text-muted-foreground hidden sm:inline">
-            Decentralized Global Time Network
-          </span>
+          </div>
+
+          {!isMobile && (
+            <nav className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+              {navLinks}
+            </nav>
+          )}
+
+          {isMobile && (
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          )}
         </div>
 
-        {/* Desktop nav */}
-        {!isMobile && (
-          <nav className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-            {navLinks}
-          </nav>
-        )}
+        <AnimatePresence>
+          {isMobile && menuOpen && (
+            <motion.nav
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden border-t border-border/50"
+              style={{ background: "hsl(var(--background) / 0.95)" }}
+            >
+              <div className="flex flex-col gap-3 px-6 py-4 text-sm font-mono text-muted-foreground">
+                {navLinks}
+              </div>
+            </motion.nav>
+          )}
+        </AnimatePresence>
+      </motion.header>
 
-        {/* Mobile hamburger */}
-        {isMobile && (
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        )}
-      </div>
-
-      {/* Mobile dropdown */}
+      {/* Unauthorized warning banner */}
       <AnimatePresence>
-        {isMobile && menuOpen && (
-          <motion.nav
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t border-border/50"
-            style={{ background: "hsl(var(--background) / 0.95)" }}
+        {unauthorized && !blocked && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="border-b border-destructive/30 bg-destructive/10 px-4 py-3"
           >
-            <div className="flex flex-col gap-3 px-6 py-4 text-sm font-mono text-muted-foreground">
-              {navLinks}
+            <div className="max-w-7xl mx-auto flex items-center gap-3 text-sm font-mono">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+              <span className="text-destructive">
+                Unauthorized sign-in attempt. This email is not approved.
+                {attemptCount >= 2
+                  ? " Access has been permanently revoked."
+                  : ` Attempt ${attemptCount} of 2 — further attempts will result in permanent access revocation.`}
+              </span>
             </div>
-          </motion.nav>
+          </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </>
   );
 }
