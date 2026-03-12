@@ -42,7 +42,7 @@ export default function NodeOperator() {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!userId,
   });
 
   const registerNode = useMutation({
