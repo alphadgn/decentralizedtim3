@@ -169,7 +169,7 @@ export default function SecurityDashboard() {
               <h1 className="text-2xl font-mono font-bold text-foreground">Security Monitor</h1>
             </div>
             <button
-              onClick={() => { refetchLogs(); refetchIps(); }}
+              onClick={() => { refetchLogs(); refetchIps(); refetchAlerts(); }}
               className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
