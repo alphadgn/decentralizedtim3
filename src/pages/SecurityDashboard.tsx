@@ -89,6 +89,34 @@ export default function SecurityDashboard() {
     refetchInterval: 30000,
   });
 
+  // Security alerts
+  const { data: securityAlerts = [], refetch: refetchAlerts } = useQuery({
+    queryKey: ["security-alerts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("security_alerts")
+        .select("*")
+        .eq("acknowledged", false)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSuperAdmin,
+    refetchInterval: 15000,
+  });
+
+  const acknowledgeAlert = useMutation({
+    mutationFn: async (alertId: string) => {
+      const { error } = await supabase
+        .from("security_alerts")
+        .update({ acknowledged: true })
+        .eq("id", alertId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["security-alerts"] }),
+  });
+
   // Stats
   const criticalCount = securityLogs.filter((l) => l.severity === "critical").length;
   const warningCount = securityLogs.filter((l) => l.severity === "warning").length;
