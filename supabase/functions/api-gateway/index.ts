@@ -14,6 +14,34 @@ const RATE_LIMITS: Record<string, number> = {
   none: 30, // unauthenticated — enough for frontend polling
 };
 
+// Super admin email — exempt from all rate limiting
+const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
+
+// Compute deterministic UUID from email (same as frontend emailToUuid)
+async function emailToUuid(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(email));
+  const hex = Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    "4" + hex.slice(13, 16),
+    "8" + hex.slice(17, 20),
+    hex.slice(20, 32),
+  ].join("-");
+}
+
+// Cached super admin UUID (computed once)
+let _superAdminUuid: string | null = null;
+async function getSuperAdminUuid(): Promise<string> {
+  if (!_superAdminUuid) {
+    _superAdminUuid = await emailToUuid(SUPER_ADMIN_EMAIL);
+  }
+  return _superAdminUuid;
+}
+
 // ── Schema rotation ──
 // Rotates field names on a configurable cycle to break automated scraping
 function getSchemaVersion(): number {
