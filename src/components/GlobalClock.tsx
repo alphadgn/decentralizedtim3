@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useNetworkTime } from "@/hooks/useNetworkTime";
 
 export function GlobalClock() {
-  const { epoch, utc, confidence, syncStatus } = useNetworkTime();
+  const { epoch, utc, confidenceBand, syncStatus } = useNetworkTime();
   
   const date = new Date(epoch);
   const hours = date.getUTCHours().toString().padStart(2, "0");
