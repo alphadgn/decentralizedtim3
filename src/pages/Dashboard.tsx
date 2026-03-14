@@ -50,6 +50,9 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
   const [showKey, setShowKey] = useState(false);
+  const [showNewKeyForm, setShowNewKeyForm] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyExpiry, setNewKeyExpiry] = useState("");
   const [usage, setUsage] = useState(generateUsage);
   const [logs, setLogs] = useState(generateLogs);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
