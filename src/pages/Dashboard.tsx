@@ -49,11 +49,31 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
   const [showKey, setShowKey] = useState(false);
+  const [usage, setUsage] = useState(generateUsage);
+  const [logs, setLogs] = useState(generateLogs);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+
+  // Auto-refresh logs every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogs(generateLogs());
+      setLastRefresh(Date.now());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh usage every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setUsage(generateUsage()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!loading && !user) return <Navigate to="/" replace />;
 
-  const maxReq = Math.max(...MOCK_USAGE.map((d) => d.requests));
-  const totalReq = MOCK_USAGE.reduce((s, d) => s + d.requests, 0);
+  const maxReq = Math.max(...usage.map((d) => d.requests));
+  const totalReq = usage.reduce((s, d) => s + d.requests, 0);
+  const avgLatency = Math.floor(10 + Math.random() * 15);
+  const successRate = (99.5 + Math.random() * 0.5).toFixed(2);
 
   const tabs = [
     { id: "usage" as const, label: "API Usage", icon: BarChart3 },
