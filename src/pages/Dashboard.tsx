@@ -152,7 +152,15 @@ export default function Dashboard() {
         {/* Request Logs */}
         {activeTab === "logs" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-5 overflow-x-auto">
-            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">Recent Requests</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Recent Requests</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  Live · {new Date(lastRefresh).toLocaleTimeString()}
+                </span>
+                <div className="w-2 h-2 neon-dot-green pulse-glow" />
+              </div>
+            </div>
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
