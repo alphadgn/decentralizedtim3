@@ -96,8 +96,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Requests (7d)", value: totalReq.toLocaleString(), accent: "neon-text-cyan" },
-            { label: "Avg Latency", value: "18ms", accent: "neon-text-green" },
-            { label: "Success Rate", value: "99.87%", accent: "neon-text-green" },
+            { label: "Avg Latency", value: `${avgLatency}ms`, accent: "neon-text-green" },
+            { label: "Success Rate", value: `${successRate}%`, accent: "neon-text-green" },
             { label: "Active Keys", value: "2", accent: "neon-text-cyan" },
           ].map((s) => (
             <div key={s.label} className="glass-panel p-4">
