@@ -10,6 +10,8 @@ import NodeOperator from "./pages/NodeOperator.tsx";
 import Developer from "./pages/Developer.tsx";
 import Admin from "./pages/Admin.tsx";
 import SuperAdmin from "./pages/SuperAdmin.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
+import EnterpriseTrading from "./pages/EnterpriseTrading.tsx";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="/developer" element={<Developer />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/enterprise/trading" element={<EnterpriseTrading />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

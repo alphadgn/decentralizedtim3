@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle } from "lucide-react";
+import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle, BarChart3, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -32,7 +32,15 @@ export function Header() {
       <Link to="/" onClick={closeMenu} className="hover:text-foreground transition-colors">Dashboard</Link>
       <Link to="/developer" onClick={closeMenu} className="hover:text-foreground transition-colors">API</Link>
       {user && (
-        <Link to="/nodes" onClick={closeMenu} className="hover:text-foreground transition-colors">Nodes</Link>
+        <>
+          <Link to="/dashboard" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+            <BarChart3 className="w-3 h-3" /> Dev Dashboard
+          </Link>
+          <Link to="/enterprise/trading" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> Trading
+          </Link>
+          <Link to="/nodes" onClick={closeMenu} className="hover:text-foreground transition-colors">Nodes</Link>
+        </>
       )}
       {isAdmin && (
         <Link to="/admin" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
