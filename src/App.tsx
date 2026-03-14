@@ -10,6 +10,8 @@ import NodeOperator from "./pages/NodeOperator.tsx";
 import Developer from "./pages/Developer.tsx";
 import Admin from "./pages/Admin.tsx";
 import SuperAdmin from "./pages/SuperAdmin.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
+import EnterpriseTrading from "./pages/EnterpriseTrading.tsx";
 
 const queryClient = new QueryClient();
 
