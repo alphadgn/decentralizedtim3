@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3, Key, CreditCard, Activity, Copy, Check,
   Plus, Eye, EyeOff, Trash2, CheckCircle, AlertCircle,
-  RefreshCw, Calendar, ArrowLeft,
+  RefreshCw, Calendar, ArrowLeft, AlertTriangle,
 } from "lucide-react";
 import { BackToDashboard } from "@/components/BackToDashboard";
 
@@ -48,12 +50,14 @@ function CopyBtn({ text }: { text: string }) {
 }
 
 export default function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, userId, loading, getAccessToken } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
-  const [showKey, setShowKey] = useState(false);
+  const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [showNewKeyForm, setShowNewKeyForm] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyExpiry, setNewKeyExpiry] = useState("");
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null);
   const [usage, setUsage] = useState(generateUsage);
   const [logs, setLogs] = useState(generateLogs);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
@@ -73,12 +77,83 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch real API keys from DB
+  const { data: apiKeys = [] } = useQuery({
+    queryKey: ["dashboard-api-keys", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const token = await getAccessToken();
+      const { data, error } = await supabase.functions.invoke("profile-api", {
+        body: { action: "get_profile", userId },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      // Fetch keys via direct query (service role reads via profile-api don't have a list action yet)
+      // We'll read from supabase directly — RLS will filter by user_id
+      const { data: keys, error: keysError } = await supabase
+        .from("api_keys")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (keysError) throw keysError;
+      return keys || [];
+    },
+    enabled: !!userId,
+  });
+
+  // Helper: invoke profile-api with Privy token
+  const invokeProfileApi = async (body: Record<string, unknown>) => {
+    const token = await getAccessToken();
+    const { data, error } = await supabase.functions.invoke("profile-api", {
+      body,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data;
+  };
+
+  const generateKey = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error("Not authenticated");
+      return invokeProfileApi({
+        action: "generate_api_key",
+        userId,
+        name: newKeyName || "Default",
+        expires_at: newKeyExpiry ? new Date(newKeyExpiry).toISOString() : null,
+      });
+    },
+    onSuccess: (data) => {
+      setNewlyGeneratedKey(data.key);
+      setNewKeyName("");
+      setNewKeyExpiry("");
+      setShowNewKeyForm(false);
+      queryClient.invalidateQueries({ queryKey: ["dashboard-api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-keys"] });
+      toast.success(`API key "${data.name}" generated — copy it now, it won't be shown again`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const revokeKey = useMutation({
+    mutationFn: async (keyId: string) => {
+      if (!userId) throw new Error("Not authenticated");
+      return invokeProfileApi({ action: "revoke_api_key", userId, keyId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard-api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-keys"] });
+      toast.success("API key revoked");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!loading && !user) return <Navigate to="/" replace />;
 
   const maxReq = Math.max(...usage.map((d) => d.requests));
   const totalReq = usage.reduce((s, d) => s + d.requests, 0);
   const avgLatency = Math.floor(10 + Math.random() * 15);
   const successRate = (99.5 + Math.random() * 0.5).toFixed(2);
+  const activeKeysCount = apiKeys.filter((k) => !k.revoked_at).length;
 
   const tabs = [
     { id: "usage" as const, label: "API Usage", icon: BarChart3 },
@@ -104,7 +179,7 @@ export default function Dashboard() {
             { label: "Requests (7d)", value: totalReq.toLocaleString(), accent: "neon-text-cyan" },
             { label: "Avg Latency", value: `${avgLatency}ms`, accent: "neon-text-green" },
             { label: "Success Rate", value: `${successRate}%`, accent: "neon-text-green" },
-            { label: "Active Keys", value: "2", accent: "neon-text-cyan" },
+            { label: "Active Keys", value: String(activeKeysCount), accent: "neon-text-cyan" },
           ].map((s) => (
             <div key={s.label} className="glass-panel p-4">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1">{s.label}</div>
@@ -201,6 +276,28 @@ export default function Dashboard() {
         {/* API Keys */}
         {activeTab === "keys" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            {/* Newly generated key warning */}
+            {newlyGeneratedKey && (
+              <div className="border border-primary/50 rounded-lg p-4 bg-primary/10 space-y-2">
+                <div className="flex items-center gap-2 text-primary text-sm font-mono font-semibold">
+                  <AlertTriangle className="w-4 h-4" />
+                  Copy your new API key — it won't be shown again
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="text-xs font-mono text-foreground bg-secondary rounded px-2 py-1 flex-1 break-all">
+                    {newlyGeneratedKey}
+                  </code>
+                  <CopyBtn text={newlyGeneratedKey} />
+                </div>
+                <button
+                  onClick={() => setNewlyGeneratedKey(null)}
+                  className="text-xs font-mono text-muted-foreground hover:text-foreground"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             <div className="glass-panel p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">API Keys</h2>
@@ -242,15 +339,11 @@ export default function Dashboard() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => {
-                        toast.success(`API key "${newKeyName || "Untitled"}" created${newKeyExpiry ? ` — expires ${newKeyExpiry}` : ""}`);
-                        setNewKeyName("");
-                        setNewKeyExpiry("");
-                        setShowNewKeyForm(false);
-                      }}
-                      className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-xs font-mono font-semibold hover:opacity-90"
+                      onClick={() => generateKey.mutate()}
+                      disabled={generateKey.isPending}
+                      className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50"
                     >
-                      Generate Key
+                      {generateKey.isPending ? "Generating..." : "Generate Key"}
                     </button>
                     <button
                       onClick={() => setShowNewKeyForm(false)}
@@ -261,32 +354,47 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-              {[
-                { name: "Production", key: "dgtn_live_7f3a2e1b9c4d5f6a8b0c1d2e3f4a5b6c", created: "2025-01-15", lastUsed: "2 min ago" },
-                { name: "Development", key: "dgtn_test_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", created: "2025-02-20", lastUsed: "1 hour ago" },
-              ].map((k) => (
-                <div key={k.name} className="border border-border/50 rounded-lg p-4 mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-mono font-semibold text-foreground">{k.name}</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setShowKey(!showKey)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                      <CopyBtn text={k.key} />
-                      <button className="text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+
+              {/* Real keys from DB */}
+              {apiKeys.length === 0 && (
+                <p className="text-xs font-mono text-muted-foreground py-4 text-center">No API keys yet. Generate one above.</p>
+              )}
+              {apiKeys.map((k) => {
+                const isRevoked = !!k.revoked_at;
+                const isExpired = k.expires_at && new Date(k.expires_at) < new Date();
+                return (
+                  <div key={k.id} className={`border rounded-lg p-4 mb-3 ${isRevoked || isExpired ? "border-destructive/30 opacity-60" : "border-border/50"}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono font-semibold text-foreground">{k.name}</span>
+                        {isRevoked && <span className="text-[10px] font-mono bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">Revoked</span>}
+                        {isExpired && !isRevoked && <span className="text-[10px] font-mono bg-destructive/20 text-destructive px-1.5 py-0.5 rounded">Expired</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CopyBtn text={k.key_prefix + "••••••••"} />
+                        {!isRevoked && (
+                          <button
+                            onClick={() => revokeKey.mutate(k.id)}
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            title="Revoke key"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <code className="text-xs font-mono text-muted-foreground">
+                      {k.key_prefix}{"•".repeat(32)}
+                    </code>
+                    <div className="flex gap-4 mt-2 text-[10px] font-mono text-muted-foreground flex-wrap">
+                      <span>Created: {new Date(k.created_at).toLocaleDateString()}</span>
+                      {k.expires_at && <span>Expires: {new Date(k.expires_at).toLocaleDateString()}</span>}
+                      {k.last_request_at && <span>Last used: {new Date(k.last_request_at).toLocaleString()}</span>}
+                      <span>Requests: {k.requests_month}/mo</span>
                     </div>
                   </div>
-                  <code className="text-xs font-mono text-muted-foreground">
-                    {showKey ? k.key : k.key.slice(0, 12) + "•".repeat(32)}
-                  </code>
-                  <div className="flex gap-4 mt-2 text-[10px] font-mono text-muted-foreground">
-                    <span>Created: {k.created}</span>
-                    <span>Last used: {k.lastUsed}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         )}
