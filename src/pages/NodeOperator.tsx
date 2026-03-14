@@ -182,7 +182,7 @@ export default function NodeOperator() {
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.map((m) => (
+                  {metrics.map((m) => (
                     <tr key={m.id} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="py-2 px-2 text-foreground">{m.region}</td>
                       <td className="py-2 px-2 text-right neon-text-green">{m.uptime.toFixed(2)}%</td>
