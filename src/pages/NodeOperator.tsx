@@ -282,7 +282,7 @@ export default function NodeOperator() {
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.map((m) => {
+                  {metrics.map((m) => {
                     const effective = parseFloat(m.staked) - parseFloat(m.slashed);
                     return (
                       <tr key={m.id} className="border-b border-border/50">
