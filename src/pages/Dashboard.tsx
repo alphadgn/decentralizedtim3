@@ -126,14 +126,21 @@ export default function Dashboard() {
         {/* Usage Chart */}
         {activeTab === "usage" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6">
-            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-6">Requests — Last 7 Days</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Requests — Last 7 Days</h2>
+              <button onClick={() => setUsage(generateUsage())} className="text-muted-foreground hover:text-foreground transition-colors">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <div className="flex items-end gap-2 h-40">
-              {MOCK_USAGE.map((d) => (
+              {usage.map((d) => (
                 <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                   <span className="text-[10px] font-mono text-muted-foreground">{(d.requests / 1000).toFixed(1)}k</span>
-                  <div
+                  <motion.div
                     className="w-full rounded-t bg-primary/60 hover:bg-primary transition-colors"
-                    style={{ height: `${(d.requests / maxReq) * 100}%` }}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${(d.requests / maxReq) * 100}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                   <span className="text-[10px] font-mono text-muted-foreground">{d.day}</span>
                 </div>
