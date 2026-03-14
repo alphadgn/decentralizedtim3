@@ -54,9 +54,14 @@ export function Header() {
         </Link>
       )}
       {isSuperAdmin && (
-        <Link to="/super-admin" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
-          <ShieldAlert className="w-3 h-3" /> Super
-        </Link>
+        <>
+          <Link to="/super-admin" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+            <ShieldAlert className="w-3 h-3" /> Super
+          </Link>
+          <Link to="/security" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" /> Security
+          </Link>
+        </>
       )}
       {user ? (
         <button onClick={handleSignOut} className="hover:text-foreground transition-colors flex items-center gap-1">
