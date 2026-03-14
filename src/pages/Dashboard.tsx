@@ -6,8 +6,9 @@ import { Navigate } from "react-router-dom";
 import {
   BarChart3, Key, CreditCard, Activity, Copy, Check,
   Plus, Eye, EyeOff, Trash2, CheckCircle, AlertCircle,
-  RefreshCw,
+  RefreshCw, Calendar, ArrowLeft,
 } from "lucide-react";
+import { BackToDashboard } from "@/components/BackToDashboard";
 
 // ── Live data generator ──────────────────────────────────────────
 function generateUsage() {
