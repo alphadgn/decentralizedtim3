@@ -588,7 +588,12 @@ Deno.serve(async (req) => {
     }
 
     // ── Field-level response filtering ──
-    const filteredResponse = abstractResponse(rawResponse, effectiveTier);
+    let filteredResponse = abstractResponse(rawResponse, effectiveTier);
+
+    // ── Schema rotation (non-enterprise only) ──
+    if (effectiveTier !== "enterprise") {
+      filteredResponse = rotateFieldNames(filteredResponse);
+    }
 
     // ── Log successful request ──
     await logSecurity(supabase, {
