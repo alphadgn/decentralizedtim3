@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_request_at: string | null
+          name: string
+          requests_month: number
+          requests_today: number
+          revoked_at: string | null
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_request_at?: string | null
+          name?: string
+          requests_month?: number
+          requests_today?: number
+          revoked_at?: string | null
+          tier?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_request_at?: string | null
+          name?: string
+          requests_month?: number
+          requests_today?: number
+          revoked_at?: string | null
+          tier?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       approved_emails: {
         Row: {
           approved_by: string | null
@@ -92,6 +134,56 @@ export type Database = {
         }
         Relationships: []
       }
+      node_stakes: {
+        Row: {
+          created_at: string
+          drift_avg_ms: number
+          id: string
+          last_observation_at: string | null
+          node_id: string
+          reputation: string
+          slashed_amount: number
+          stake_amount: number
+          trust_score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          drift_avg_ms?: number
+          id?: string
+          last_observation_at?: string | null
+          node_id: string
+          reputation?: string
+          slashed_amount?: number
+          stake_amount?: number
+          trust_score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          drift_avg_ms?: number
+          id?: string
+          last_observation_at?: string | null
+          node_id?: string
+          reputation?: string
+          slashed_amount?: number
+          stake_amount?: number
+          trust_score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "node_stakes_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: true
+            referencedRelation: "node_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -118,6 +210,83 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      time_anchors: {
+        Row: {
+          block_number: number | null
+          blockchain: string
+          consensus_hash: string
+          created_at: string
+          epoch: number
+          id: string
+          tx_hash: string | null
+          validator_signatures: Json
+        }
+        Insert: {
+          block_number?: number | null
+          blockchain?: string
+          consensus_hash: string
+          created_at?: string
+          epoch: number
+          id?: string
+          tx_hash?: string | null
+          validator_signatures?: Json
+        }
+        Update: {
+          block_number?: number | null
+          blockchain?: string
+          consensus_hash?: string
+          created_at?: string
+          epoch?: number
+          id?: string
+          tx_hash?: string | null
+          validator_signatures?: Json
+        }
+        Relationships: []
+      }
+      trade_events: {
+        Row: {
+          api_key_id: string | null
+          canonical_timestamp: number
+          created_at: string
+          event_hash: string
+          exchange_id: string
+          id: string
+          sequence_number: number
+          signature: string
+          verification_proof: string | null
+        }
+        Insert: {
+          api_key_id?: string | null
+          canonical_timestamp: number
+          created_at?: string
+          event_hash: string
+          exchange_id: string
+          id?: string
+          sequence_number: number
+          signature: string
+          verification_proof?: string | null
+        }
+        Update: {
+          api_key_id?: string | null
+          canonical_timestamp?: number
+          created_at?: string
+          event_hash?: string
+          exchange_id?: string
+          id?: string
+          sequence_number?: number
+          signature?: string
+          verification_proof?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_events_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
