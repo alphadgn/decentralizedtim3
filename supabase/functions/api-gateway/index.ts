@@ -8,10 +8,10 @@ const corsHeaders = {
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
-  free: 10,
-  pro: 60,
-  enterprise: 300,
-  none: 5, // unauthenticated
+  free: 30,
+  pro: 120,
+  enterprise: 600,
+  none: 30, // unauthenticated — enough for frontend polling
 };
 
 // ── Tier-based field filtering ──
