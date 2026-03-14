@@ -31,6 +31,9 @@ export function Header() {
     <>
       <Link to="/" onClick={closeMenu} className="hover:text-foreground transition-colors">Dashboard</Link>
       <Link to="/developer" onClick={closeMenu} className="hover:text-foreground transition-colors">API</Link>
+      <Link to="/pricing" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+        <CreditCard className="w-3 h-3" /> Pricing
+      </Link>
       {user && (
         <>
           <Link to="/dashboard" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
@@ -40,6 +43,9 @@ export function Header() {
             <TrendingUp className="w-3 h-3" /> Trading
           </Link>
           <Link to="/nodes" onClick={closeMenu} className="hover:text-foreground transition-colors">Nodes</Link>
+          <Link to="/profile" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+            <User className="w-3 h-3" /> Profile
+          </Link>
         </>
       )}
       {isAdmin && (
