@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.order-event]
 verify_jwt = false
+
+[functions.check-key-expiry]
+verify_jwt = false

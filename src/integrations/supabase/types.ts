@@ -17,6 +17,7 @@ export type Database = {
       api_keys: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
           key_hash: string
           key_prefix: string
@@ -30,6 +31,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_hash: string
           key_prefix: string
@@ -43,6 +45,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           key_hash?: string
           key_prefix?: string
