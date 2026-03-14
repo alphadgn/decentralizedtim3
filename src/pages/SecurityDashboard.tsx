@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BackToDashboard } from "@/components/BackToDashboard";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
