@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
+import { BackToDashboard } from "@/components/BackToDashboard";
 import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe } from "lucide-react";
 
 // ── API Endpoints ──────────────────────────────────────────────────
