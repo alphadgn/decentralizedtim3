@@ -380,7 +380,7 @@ export default function NodeOperator() {
             <div className="glass-panel p-6">
               <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">Node Drift Distribution (ms)</h2>
               <div className="flex items-end gap-1 h-40">
-                {METRICS.map((m) => {
+                {metrics.map((m) => {
                   const h = Math.min(100, Math.abs(parseFloat(m.drift)) * 15 + 10);
                   const color = m.reputation === "trusted"
                     ? "hsl(var(--neon-green))"
