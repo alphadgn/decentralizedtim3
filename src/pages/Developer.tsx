@@ -222,9 +222,9 @@ func main() {
     })
 
     // Get network canonical time
-    time, _ := client.GetTime()
-    fmt.Printf("Epoch: %d\\n", time.Epoch)
-    fmt.Printf("Confidence: %.2f%%\\n", time.Confidence)
+    time, _ := client.Query()
+    fmt.Printf("Timestamp: %d\\n", time.Timestamp)
+    fmt.Printf("Signal: %s\\n", time.SignalBand)
 
     // Submit trade event
     order, _ := client.SubmitOrderEvent(dgtn.OrderEvent{
