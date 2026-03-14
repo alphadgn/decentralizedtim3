@@ -44,7 +44,7 @@ const LATENCY_DATA = [
 
 export default function EnterpriseTrading() {
   const { user, loading } = useAuth();
-  const { epoch, confidence } = useNetworkTime();
+  const { epoch, signalBand } = useNetworkTime();
   const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements">("ordering");
   const [tradeEvents, setTradeEvents] = useState(generateTradeEvents(epoch));
 
