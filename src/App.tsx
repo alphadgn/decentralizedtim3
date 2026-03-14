@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import EnterpriseTrading from "./pages/EnterpriseTrading.tsx";
 import Profile from "./pages/Profile.tsx";
 import Pricing from "./pages/Pricing.tsx";
+import SecurityDashboard from "./pages/SecurityDashboard.tsx";
 
 const queryClient = new QueryClient();
 
