@@ -73,19 +73,12 @@ export function useAuth() {
     // Step 2: Approved — sync profile & role
     const userId = await emailToUuid(email);
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!profile) {
-      const accessToken2 = await getAccessToken();
-      await supabase.functions.invoke("sync-privy-user", {
-        body: { email, userId },
-        headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
-      });
-    }
+    // Always invoke sync to ensure role enforcement (especially super_admin)
+    const accessToken2 = await getAccessToken();
+    await supabase.functions.invoke("sync-privy-user", {
+      body: { email, userId },
+      headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
+    });
 
     const { data: roleData } = await supabase
       .from("user_roles")
@@ -124,6 +117,7 @@ export function useAuth() {
     blocked: state.blocked,
     unauthorized: state.unauthorized,
     attemptCount: state.attemptCount,
+    getAccessToken,
   };
 }
 
