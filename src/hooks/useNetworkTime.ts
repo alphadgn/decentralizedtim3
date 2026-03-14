@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface NetworkTimeState {
   epoch: number;
@@ -32,69 +32,96 @@ const NODES = [
 
 export const NETWORK_NODES = NODES;
 
+// ── Shared singleton state to prevent duplicate API calls ──
+let sharedState: NetworkTimeState = {
+  epoch: Date.now(),
+  utc: new Date().toISOString(),
+  offset: 0,
+  confidenceBand: "high",
+  nodeCount: NODES.length,
+  syncStatus: "syncing",
+  lastSync: 0,
+  accuracyBand: "high",
+  signalBand: "strong",
+};
+
+let subscriberCount = 0;
+let syncIntervalId: ReturnType<typeof setInterval> | null = null;
+let tickIntervalId: ReturnType<typeof setInterval> | null = null;
+const listeners = new Set<() => void>();
+
+function notifyListeners() {
+  listeners.forEach((fn) => fn());
+}
+
+async function syncFromServer() {
+  try {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const res = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/api-gateway/api/time`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      sharedState = {
+        ...sharedState,
+        epoch: data.timestamp ?? Date.now(),
+        utc: data.iso ?? new Date().toISOString(),
+        confidenceBand: data.signal_band ?? "strong",
+        accuracyBand: data.accuracy_band ?? "high",
+        signalBand: data.signal_band ?? "strong",
+        syncStatus: data.consensus_status === "verified" ? "synced" : "syncing",
+        nodeCount: data.node_count ?? NODES.length,
+        lastSync: Date.now(),
+      };
+    } else {
+      sharedState = { ...sharedState, syncStatus: "drift" };
+    }
+  } catch {
+    sharedState = { ...sharedState, syncStatus: "drift" };
+  }
+  notifyListeners();
+}
+
+function startSharedSync() {
+  if (syncIntervalId) return; // already running
+
+  // Local clock tick for smooth display
+  tickIntervalId = setInterval(() => {
+    const now = Date.now();
+    sharedState = { ...sharedState, epoch: now, utc: new Date(now).toISOString() };
+    notifyListeners();
+  }, 50);
+
+  // Single API call every SYNC_INTERVAL
+  syncFromServer();
+  syncIntervalId = setInterval(syncFromServer, SYNC_INTERVAL);
+}
+
+function stopSharedSync() {
+  if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; }
+  if (tickIntervalId) { clearInterval(tickIntervalId); tickIntervalId = null; }
+}
+
 export function useNetworkTime() {
-  const [state, setState] = useState<NetworkTimeState>({
-    epoch: Date.now(),
-    utc: new Date().toISOString(),
-    offset: 0,
-    confidenceBand: "high",
-    nodeCount: NODES.length,
-    syncStatus: "synced",
-    lastSync: Date.now(),
-    accuracyBand: "high",
-    signalBand: "strong",
-  });
+  const [, forceUpdate] = useState(0);
+  const listenerRef = useRef<() => void>();
 
-  // Local clock tick — display only, no protocol computation
   useEffect(() => {
-    const tickInterval = setInterval(() => {
-      const now = Date.now();
-      setState(prev => ({
-        ...prev,
-        epoch: now,
-        utc: new Date(now).toISOString(),
-      }));
-    }, 50);
+    subscriberCount++;
+    const listener = () => forceUpdate((n) => n + 1);
+    listenerRef.current = listener;
+    listeners.add(listener);
+    startSharedSync();
 
-    return () => clearInterval(tickInterval);
-  }, []);
-
-  // Periodic sync from server — all consensus happens server-side
-  useEffect(() => {
-    let mounted = true;
-
-    const sync = async () => {
-      try {
-        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-        const res = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/api-gateway/api/time`
-        );
-        if (res.ok && mounted) {
-          const data = await res.json();
-          setState(prev => ({
-            ...prev,
-            epoch: data.timestamp ?? Date.now(),
-            utc: data.iso ?? new Date().toISOString(),
-            confidenceBand: data.signal_band ?? "strong",
-            accuracyBand: data.accuracy_band ?? "high",
-            signalBand: data.signal_band ?? "strong",
-            syncStatus: data.consensus_status === "verified" ? "synced" : "syncing",
-            nodeCount: data.node_count ?? NODES.length,
-            lastSync: Date.now(),
-          }));
-        }
-      } catch {
-        // Fallback to local clock — no protocol logic exposed
-        if (mounted) {
-          setState(prev => ({ ...prev, syncStatus: "drift" }));
-        }
+    return () => {
+      listeners.delete(listener);
+      subscriberCount--;
+      if (subscriberCount <= 0) {
+        subscriberCount = 0;
+        stopSharedSync();
       }
     };
-
-    sync();
-    const interval = setInterval(sync, SYNC_INTERVAL);
-    return () => { mounted = false; clearInterval(interval); };
   }, []);
 
-  return state;
+  return sharedState;
 }
