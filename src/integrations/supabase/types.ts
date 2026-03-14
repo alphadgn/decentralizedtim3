@@ -241,6 +241,42 @@ export type Database = {
         }
         Relationships: []
       }
+      security_alerts: {
+        Row: {
+          acknowledged: boolean
+          alert_type: string
+          created_at: string
+          endpoint: string | null
+          id: string
+          ip_address: string | null
+          message: string
+          metadata: Json | null
+          severity: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          alert_type: string
+          created_at?: string
+          endpoint?: string | null
+          id?: string
+          ip_address?: string | null
+          message: string
+          metadata?: Json | null
+          severity?: string
+        }
+        Update: {
+          acknowledged?: boolean
+          alert_type?: string
+          created_at?: string
+          endpoint?: string | null
+          id?: string
+          ip_address?: string | null
+          message?: string
+          metadata?: Json | null
+          severity?: string
+        }
+        Relationships: []
+      }
       security_logs: {
         Row: {
           api_key_id: string | null
@@ -373,6 +409,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_preferences: {
+        Row: {
+          api_key_expiry_alerts: boolean
+          created_at: string
+          dashboard_auto_refresh: boolean
+          email_notifications: boolean
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key_expiry_alerts?: boolean
+          created_at?: string
+          dashboard_auto_refresh?: boolean
+          email_notifications?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key_expiry_alerts?: boolean
+          created_at?: string
+          dashboard_auto_refresh?: boolean
+          email_notifications?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

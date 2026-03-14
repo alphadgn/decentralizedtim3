@@ -548,8 +548,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Rate limiting ──
-    const { allowed, remaining } = await checkRateLimit(supabase, ip, effectiveTier, path);
+    // ── Rate limiting (super admin exempt) ──
+    const superAdminUuid = await getSuperAdminUuid();
+    const isSuperAdmin = userId === superAdminUuid;
+
+    let allowed = true;
+    let remaining = 9999;
+
+    if (!isSuperAdmin) {
+      const rateResult = await checkRateLimit(supabase, ip, effectiveTier, path);
+      allowed = rateResult.allowed;
+      remaining = rateResult.remaining;
+    }
+
     if (!allowed) {
       await logSecurity(supabase, {
         event_type: "rate_limit_exceeded",
@@ -561,6 +572,16 @@ Deno.serve(async (req) => {
         api_key_id: keyId ?? undefined,
         response_code: 429,
       });
+
+      // Create security alert for repeated rate limit violations
+      await createSecurityAlert(supabase, {
+        alert_type: "rate_limit_violation",
+        severity: "warning",
+        message: `Repeated rate limit violations from IP ${ip} on endpoint ${path}`,
+        ip_address: ip,
+        endpoint: path,
+      });
+
       return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
         status: 429,
         headers: {
