@@ -12,6 +12,8 @@ import Admin from "./pages/Admin.tsx";
 import SuperAdmin from "./pages/SuperAdmin.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import EnterpriseTrading from "./pages/EnterpriseTrading.tsx";
+import Profile from "./pages/Profile.tsx";
+import Pricing from "./pages/Pricing.tsx";
 
 const queryClient = new QueryClient();
 
