@@ -38,7 +38,7 @@ function generateNodeMetrics() {
   });
 }
 
-const METRICS = generateNodeMetrics();
+// Use state for live-refreshing metrics
 
 // Reputation badge component
 function ReputationBadge({ reputation }: { reputation: string }) {
