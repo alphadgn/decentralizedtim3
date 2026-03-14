@@ -203,6 +203,50 @@ export default function SecurityDashboard() {
           ))}
         </div>
 
+        {/* Security Alerts */}
+        {securityAlerts.length > 0 && (
+          <div className="glass-panel p-6 border border-destructive/30">
+            <h2 className="text-sm font-mono uppercase tracking-widest text-destructive mb-4 flex items-center gap-2">
+              <BellRing className="w-4 h-4" /> Active Alerts ({securityAlerts.length})
+            </h2>
+            <div className="space-y-3">
+              {securityAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`flex items-start justify-between gap-3 p-3 rounded-lg ${
+                    alert.severity === "critical" ? "bg-destructive/10 border border-destructive/20" : "bg-yellow-500/5 border border-yellow-500/20"
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                        alert.severity === "critical" ? "bg-destructive/20 text-destructive" : "bg-yellow-500/20 text-yellow-400"
+                      }`}>
+                        {alert.severity.toUpperCase()}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {alert.alert_type}
+                      </span>
+                    </div>
+                    <p className="text-xs font-mono text-foreground">{alert.message}</p>
+                    <div className="flex gap-4 mt-1 text-[10px] font-mono text-muted-foreground">
+                      {alert.ip_address && <span>IP: {alert.ip_address}</span>}
+                      <span>{new Date(alert.created_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => acknowledgeAlert.mutate(alert.id)}
+                    className="shrink-0 text-muted-foreground hover:text-accent transition-colors"
+                    title="Acknowledge"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Honeypot Hits */}
         <div className="glass-panel p-6">
           <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
