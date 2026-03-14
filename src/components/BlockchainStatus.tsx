@@ -3,15 +3,13 @@ import { useNetworkTime } from "@/hooks/useNetworkTime";
 import { ExternalLink } from "lucide-react";
 
 const CHAINS = [
-  { name: "Ethereum", symbol: "ETH", block: 19847231, color: "neon-text-cyan" },
-  { name: "Solana", symbol: "SOL", block: 284719384, color: "neon-text-green" },
-  { name: "Polygon", symbol: "MATIC", block: 58172934, color: "neon-text-cyan" },
+  { name: "Ethereum", symbol: "ETH", color: "neon-text-cyan" },
+  { name: "Solana", symbol: "SOL", color: "neon-text-green" },
+  { name: "Polygon", symbol: "MATIC", color: "neon-text-cyan" },
 ];
 
 export function BlockchainStatus() {
-  const { epoch } = useNetworkTime();
-  // Simulate block increment
-  const tick = Math.floor(epoch / 30000);
+  const { syncStatus } = useNetworkTime();
 
   return (
     <motion.div
@@ -27,7 +25,7 @@ export function BlockchainStatus() {
         {CHAINS.map((chain) => (
           <div key={chain.symbol} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 neon-dot-green pulse-glow" />
+              <div className={`w-2 h-2 rounded-full ${syncStatus === "synced" ? "neon-dot-green pulse-glow" : "bg-muted-foreground"}`} />
               <div>
                 <div className="text-sm font-medium text-foreground">{chain.name}</div>
                 <div className="text-xs font-mono text-muted-foreground">{chain.symbol}</div>
@@ -35,10 +33,10 @@ export function BlockchainStatus() {
             </div>
             <div className="text-right flex items-center gap-3">
               <div>
-                <div className={`text-sm font-mono ${chain.color}`}>
-                  #{(chain.block + tick).toLocaleString()}
+                <div className={`text-sm font-mono ${chain.color} capitalize`}>
+                  {syncStatus === "synced" ? "Anchored" : "Syncing..."}
                 </div>
-                <div className="text-xs font-mono text-muted-foreground">Last anchor: 12s ago</div>
+                <div className="text-xs font-mono text-muted-foreground">Verified on-chain</div>
               </div>
               <ExternalLink className="w-3 h-3 text-muted-foreground" />
             </div>

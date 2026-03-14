@@ -4,15 +4,17 @@ interface NetworkTimeState {
   epoch: number;
   utc: string;
   offset: number;
-  confidence: number;
+  confidenceBand: string;
   nodeCount: number;
   syncStatus: "synced" | "syncing" | "drift";
   lastSync: number;
+  accuracyBand: string;
+  signalBand: string;
 }
 
 const SYNC_INTERVAL = 10_000;
 
-// Simulated network nodes
+// Node metadata only — no protocol logic
 const NODES = [
   { id: "node-us-east", region: "US East", lat: 40.7, lng: -74.0 },
   { id: "node-us-west", region: "US West", lat: 37.8, lng: -122.4 },
@@ -31,42 +33,68 @@ const NODES = [
 export const NETWORK_NODES = NODES;
 
 export function useNetworkTime() {
-  const offsetRef = useRef(Math.random() * 2 - 1); // ±1ms simulated offset
-  
-  const computeState = useCallback((): NetworkTimeState => {
-    const now = Date.now();
-    const networkTime = now + offsetRef.current;
-    const date = new Date(networkTime);
-    
-    return {
-      epoch: Math.floor(networkTime),
-      utc: date.toISOString(),
-      offset: offsetRef.current,
-      confidence: 99.97 + Math.random() * 0.03,
-      nodeCount: NODES.length,
-      syncStatus: "synced",
-      lastSync: now,
-    };
-  }, []);
+  const [state, setState] = useState<NetworkTimeState>({
+    epoch: Date.now(),
+    utc: new Date().toISOString(),
+    offset: 0,
+    confidenceBand: "high",
+    nodeCount: NODES.length,
+    syncStatus: "synced",
+    lastSync: Date.now(),
+    accuracyBand: "high",
+    signalBand: "strong",
+  });
 
-  const [state, setState] = useState<NetworkTimeState>(computeState);
-
+  // Local clock tick — display only, no protocol computation
   useEffect(() => {
-    // High-frequency tick for smooth clock
     const tickInterval = setInterval(() => {
-      setState(computeState());
+      const now = Date.now();
+      setState(prev => ({
+        ...prev,
+        epoch: now,
+        utc: new Date(now).toISOString(),
+      }));
     }, 50);
 
-    // Re-sync offset periodically
-    const syncInterval = setInterval(() => {
-      offsetRef.current = Math.random() * 2 - 1;
-    }, SYNC_INTERVAL);
+    return () => clearInterval(tickInterval);
+  }, []);
 
-    return () => {
-      clearInterval(tickInterval);
-      clearInterval(syncInterval);
+  // Periodic sync from server — all consensus happens server-side
+  useEffect(() => {
+    let mounted = true;
+
+    const sync = async () => {
+      try {
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/api-gateway/api/time`
+        );
+        if (res.ok && mounted) {
+          const data = await res.json();
+          setState(prev => ({
+            ...prev,
+            epoch: data.timestamp ?? Date.now(),
+            utc: data.iso ?? new Date().toISOString(),
+            confidenceBand: data.signal_band ?? "strong",
+            accuracyBand: data.accuracy_band ?? "high",
+            signalBand: data.signal_band ?? "strong",
+            syncStatus: data.consensus_status === "verified" ? "synced" : "syncing",
+            nodeCount: data.node_count ?? NODES.length,
+            lastSync: Date.now(),
+          }));
+        }
+      } catch {
+        // Fallback to local clock — no protocol logic exposed
+        if (mounted) {
+          setState(prev => ({ ...prev, syncStatus: "drift" }));
+        }
+      }
     };
-  }, [computeState]);
+
+    sync();
+    const interval = setInterval(sync, SYNC_INTERVAL);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
 
   return state;
 }
