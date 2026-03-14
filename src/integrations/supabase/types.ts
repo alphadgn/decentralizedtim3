@@ -321,6 +321,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      nextval_trade_seq: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "user"
