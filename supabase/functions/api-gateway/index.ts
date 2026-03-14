@@ -14,6 +14,34 @@ const RATE_LIMITS: Record<string, number> = {
   none: 30, // unauthenticated — enough for frontend polling
 };
 
+// Super admin email — exempt from all rate limiting
+const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
+
+// Compute deterministic UUID from email (same as frontend emailToUuid)
+async function emailToUuid(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(email));
+  const hex = Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    "4" + hex.slice(13, 16),
+    "8" + hex.slice(17, 20),
+    hex.slice(20, 32),
+  ].join("-");
+}
+
+// Cached super admin UUID (computed once)
+let _superAdminUuid: string | null = null;
+async function getSuperAdminUuid(): Promise<string> {
+  if (!_superAdminUuid) {
+    _superAdminUuid = await emailToUuid(SUPER_ADMIN_EMAIL);
+  }
+  return _superAdminUuid;
+}
+
 // ── Schema rotation ──
 // Rotates field names on a configurable cycle to break automated scraping
 function getSchemaVersion(): number {
@@ -123,6 +151,25 @@ function abstractResponse(data: Record<string, any>, tier: string): Record<strin
   }
 
   return result;
+}
+
+// ── Security Alerts ──
+async function createSecurityAlert(
+  supabase: any,
+  alert: {
+    alert_type: string;
+    severity: string;
+    message: string;
+    ip_address?: string;
+    endpoint?: string;
+    metadata?: Record<string, any>;
+  }
+) {
+  try {
+    await supabase.from("security_alerts").insert(alert);
+  } catch (e) {
+    console.error("Failed to create security alert:", e);
+  }
 }
 
 // ── Logging ──
@@ -487,6 +534,16 @@ Deno.serve(async (req) => {
         blocked_until: new Date(Date.now() + 86400_000).toISOString(), // 24h block
       }, { onConflict: "ip_address,endpoint" });
 
+      // Create security alert for honeypot hit
+      await createSecurityAlert(supabase, {
+        alert_type: "honeypot_hit",
+        severity: "critical",
+        message: `Honeypot accessed: ${path} from IP ${ip}`,
+        ip_address: ip,
+        endpoint: path,
+        metadata: { user_agent: userAgent, raw_path: url.pathname },
+      });
+
       return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -520,8 +577,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Rate limiting ──
-    const { allowed, remaining } = await checkRateLimit(supabase, ip, effectiveTier, path);
+    // ── Rate limiting (super admin exempt) ──
+    const superAdminUuid = await getSuperAdminUuid();
+    const isSuperAdmin = userId === superAdminUuid;
+
+    let allowed = true;
+    let remaining = 9999;
+
+    if (!isSuperAdmin) {
+      const rateResult = await checkRateLimit(supabase, ip, effectiveTier, path);
+      allowed = rateResult.allowed;
+      remaining = rateResult.remaining;
+    }
+
     if (!allowed) {
       await logSecurity(supabase, {
         event_type: "rate_limit_exceeded",
@@ -533,6 +601,16 @@ Deno.serve(async (req) => {
         api_key_id: keyId ?? undefined,
         response_code: 429,
       });
+
+      // Create security alert for repeated rate limit violations
+      await createSecurityAlert(supabase, {
+        alert_type: "rate_limit_violation",
+        severity: "warning",
+        message: `Repeated rate limit violations from IP ${ip} on endpoint ${path}`,
+        ip_address: ip,
+        endpoint: path,
+      });
+
       return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
         status: 429,
         headers: {

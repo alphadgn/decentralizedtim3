@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  User, Mail, Clock, Shield, Save, Key, Bell, Monitor, Moon, Sun,
+  User, Mail, Clock, Shield, Save, Key, Bell, Monitor,
 } from "lucide-react";
 
 export default function Profile() {
@@ -59,6 +59,67 @@ export default function Profile() {
     enabled: !!userId,
   });
 
+  // Preferences
+  const { data: preferences } = useQuery({
+    queryKey: ["user-preferences", userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data, error } = await supabase
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId,
+  });
+
+  const [prefs, setPrefs] = useState({
+    email_notifications: false,
+    dashboard_auto_refresh: true,
+    api_key_expiry_alerts: false,
+  });
+
+  useEffect(() => {
+    if (preferences) {
+      setPrefs({
+        email_notifications: preferences.email_notifications,
+        dashboard_auto_refresh: preferences.dashboard_auto_refresh,
+        api_key_expiry_alerts: preferences.api_key_expiry_alerts,
+      });
+    }
+  }, [preferences]);
+
+  const togglePref = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
+      if (!userId) throw new Error("Not authenticated");
+
+      const updated = { ...prefs, [key]: value };
+
+      if (preferences) {
+        const { error } = await supabase
+          .from("user_preferences")
+          .update({ [key]: value, updated_at: new Date().toISOString() })
+          .eq("user_id", userId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("user_preferences")
+          .insert({ user_id: userId, ...updated });
+        if (error) throw error;
+      }
+
+      setPrefs(updated);
+    },
+    onSuccess: (_, { key, value }) => {
+      queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
+      const label = key.replace(/_/g, " ");
+      toast.success(`${label} ${value ? "enabled" : "disabled"}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name || "");
@@ -94,6 +155,12 @@ export default function Profile() {
     .map((s: string) => s[0]?.toUpperCase())
     .join("");
 
+  const prefItems = [
+    { key: "email_notifications", icon: Bell, label: "Email Notifications", desc: "Receive alerts for honeypot hits, rate limit violations, and node drift warnings" },
+    { key: "dashboard_auto_refresh", icon: Monitor, label: "Dashboard Auto-refresh", desc: "Automatically refresh dashboard data every 30 seconds" },
+    { key: "api_key_expiry_alerts", icon: Key, label: "API Key Expiry Alerts", desc: "Get notified 7 days before API keys expire" },
+  ];
+
   return (
     <div className="min-h-screen bg-background grid-bg">
       <Header />
@@ -106,7 +173,6 @@ export default function Profile() {
         {/* Profile Card */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6">
           <div className="flex items-start gap-5">
-            {/* Avatar */}
             <div className="w-16 h-16 rounded-full bg-primary/20 border-2 border-primary/50 flex items-center justify-center shrink-0">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
@@ -187,24 +253,27 @@ export default function Profile() {
         <div className="glass-panel p-5">
           <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">Preferences</h2>
           <div className="space-y-4">
-            {[
-              { icon: Bell, label: "Email Notifications", desc: "Receive alerts for node status changes and drift warnings" },
-              { icon: Monitor, label: "Dashboard Auto-refresh", desc: "Automatically refresh dashboard data every 30 seconds" },
-              { icon: Key, label: "API Key Expiry Alerts", desc: "Get notified 7 days before API keys expire" },
-            ].map((pref, i) => (
-              <div key={pref.label} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <pref.icon className="w-3.5 h-3.5 text-muted-foreground" />
-                  <div>
-                    <div className="text-xs font-mono font-semibold text-foreground">{pref.label}</div>
-                    <div className="text-[10px] font-mono text-muted-foreground">{pref.desc}</div>
+            {prefItems.map((pref) => {
+              const isOn = prefs[pref.key as keyof typeof prefs];
+              return (
+                <div key={pref.key} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <pref.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs font-mono font-semibold text-foreground">{pref.label}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground">{pref.desc}</div>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => togglePref.mutate({ key: pref.key, value: !isOn })}
+                    disabled={togglePref.isPending}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${isOn ? "bg-primary" : "bg-secondary"}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-foreground absolute top-0.5 transition-transform ${isOn ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </button>
                 </div>
-                <button className={`w-10 h-5 rounded-full transition-colors relative ${i === 1 ? "bg-primary" : "bg-secondary"}`}>
-                  <div className={`w-4 h-4 rounded-full bg-foreground absolute top-0.5 transition-transform ${i === 1 ? "translate-x-5" : "translate-x-0.5"}`} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </main>
