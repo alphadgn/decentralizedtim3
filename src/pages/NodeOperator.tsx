@@ -64,6 +64,13 @@ export default function NodeOperator() {
   const [region, setRegion] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [activeTab, setActiveTab] = useState<"overview" | "staking" | "reputation" | "drift">("overview");
+  const [metrics, setMetrics] = useState(generateNodeMetrics);
+
+  // Auto-refresh metrics every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setMetrics(generateNodeMetrics()), 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: myNodes = [] } = useQuery({
     queryKey: ["my-nodes", userId],
