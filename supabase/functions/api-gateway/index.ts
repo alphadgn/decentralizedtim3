@@ -14,6 +14,47 @@ const RATE_LIMITS: Record<string, number> = {
   none: 30, // unauthenticated — enough for frontend polling
 };
 
+// ── Schema rotation ──
+// Rotates field names on a configurable cycle to break automated scraping
+function getSchemaVersion(): number {
+  // Rotate every 6 hours based on epoch
+  return Math.floor(Date.now() / (6 * 3600_000)) % 3;
+}
+
+const SCHEMA_ROTATIONS: Record<number, Record<string, string>> = {
+  0: {}, // default field names
+  1: {
+    timestamp: "ts",
+    accuracy_band: "precision_level",
+    signal_band: "signal_quality",
+    consensus_status: "network_state",
+    node_count: "validator_count",
+    drift_band: "offset_band",
+    analytics_summary: "metrics_overview",
+  },
+  2: {
+    timestamp: "epoch_ms",
+    accuracy_band: "acc_tier",
+    signal_band: "sig_tier",
+    consensus_status: "consensus_state",
+    node_count: "n_nodes",
+    drift_band: "drift_tier",
+    analytics_summary: "analytics_brief",
+  },
+};
+
+function rotateFieldNames(data: Record<string, any>): Record<string, any> {
+  const version = getSchemaVersion();
+  const mapping = SCHEMA_ROTATIONS[version];
+  if (!mapping || Object.keys(mapping).length === 0) return data;
+
+  const rotated: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    rotated[mapping[key] ?? key] = value;
+  }
+  return rotated;
+}
+
 // ── Tier-based field filtering ──
 const TIER_FIELDS: Record<string, string[]> = {
   free: ["timestamp", "accuracy_band", "signal_band", "consensus_status"],
