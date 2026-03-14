@@ -182,12 +182,12 @@ dgtn.onSync((t) => console.log(\`Offset: \${t.epoch - Date.now()}ms\`));`,
 client = DGTNClient(api_key="your-api-key")
 
 # Get network canonical time
-time = client.get_time()
-print(f"Epoch: {time.epoch}")
-print(f"Confidence: {time.confidence}%")
+time = client.query()
+print(f"Timestamp: {time.timestamp}")
+print(f"Signal: {time.signal_band}")
 
 # High-precision enterprise time
-precise = client.get_precision_time()
+precise = client.query(precision=True)
 print(f"Accuracy: {precise.accuracy}")
 
 # Submit trade event
