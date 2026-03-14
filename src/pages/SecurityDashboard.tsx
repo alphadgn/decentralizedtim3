@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -72,7 +73,7 @@ export default function SecurityDashboard() {
     refetchInterval: 30000,
   });
 
-  // Honeypot hits (filtered from security_logs)
+  // Honeypot hits
   const { data: honeypotHits = [] } = useQuery({
     queryKey: ["honeypot-hits"],
     queryFn: async () => {
@@ -103,8 +104,38 @@ export default function SecurityDashboard() {
       return data || [];
     },
     enabled: isSuperAdmin,
-    refetchInterval: 15000,
   });
+
+  // Realtime subscription for security_alerts
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+
+    const channel = supabase
+      .channel("security-alerts-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "security_alerts",
+        },
+        (payload) => {
+          const newAlert = payload.new as any;
+          // Show toast notification
+          const icon = newAlert.severity === "critical" ? "🚨" : "⚠️";
+          toast.warning(`${icon} ${newAlert.alert_type}: ${newAlert.message}`, {
+            duration: 10000,
+          });
+          // Invalidate query to refresh the list
+          queryClient.invalidateQueries({ queryKey: ["security-alerts"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isSuperAdmin, queryClient]);
 
   const acknowledgeAlert = useMutation({
     mutationFn: async (alertId: string) => {
@@ -167,6 +198,10 @@ export default function SecurityDashboard() {
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-destructive" />
               <h1 className="text-2xl font-mono font-bold text-foreground">Security Monitor</h1>
+              <span className="ml-2 flex items-center gap-1 text-[10px] font-mono text-accent">
+                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                LIVE
+              </span>
             </div>
             <button
               onClick={() => { refetchLogs(); refetchIps(); refetchAlerts(); }}
