@@ -436,7 +436,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      node_stakes_public: {
+        Row: {
+          created_at: string | null
+          drift_avg_ms: number | null
+          id: string | null
+          last_observation_at: string | null
+          node_id: string | null
+          reputation: string | null
+          stake_amount: number | null
+          trust_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          drift_avg_ms?: number | null
+          id?: string | null
+          last_observation_at?: string | null
+          node_id?: string | null
+          reputation?: string | null
+          stake_amount?: number | null
+          trust_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          drift_avg_ms?: number | null
+          id?: string | null
+          last_observation_at?: string | null
+          node_id?: string | null
+          reputation?: string | null
+          stake_amount?: number | null
+          trust_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "node_stakes_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: true
+            referencedRelation: "node_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
