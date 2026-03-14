@@ -355,7 +355,7 @@ export default function NodeOperator() {
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.sort((a, b) => parseFloat(b.trustScore) - parseFloat(a.trustScore)).map((m) => (
+                  {[...metrics].sort((a, b) => parseFloat(b.trustScore) - parseFloat(a.trustScore)).map((m) => (
                     <tr key={m.id} className="border-b border-border/50">
                       <td className="py-2 px-2 text-foreground">{m.region}</td>
                       <td className="py-2 px-2 text-right">
