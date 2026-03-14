@@ -22,35 +22,9 @@ async function emailToUuid(email: string): Promise<string> {
   ].join("-");
 }
 
-function getEmailFromToken(req: Request): string | null {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.replace("Bearer ", "");
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    if (payload.exp && payload.exp < Date.now() / 1000) return null;
-    if (!payload.iss?.includes("privy.io")) return null;
-    // Privy tokens don't always contain email directly — we'll rely on email passed in body
-    return "verified";
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
-  }
-
-  // Verify Privy token exists
-  const tokenCheck = getEmailFromToken(req);
-  if (!tokenCheck) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
 
   const supabase = createClient(
