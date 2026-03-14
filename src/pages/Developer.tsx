@@ -148,13 +148,14 @@ const dgtn = new DGTNClient({
 });
 
 // Get verified network time
-const time = await dgtn.getTime();
-console.log(time.epoch);       // 1710268800000
-console.log(time.confidence);  // 99.97
+const time = await dgtn.query();
+console.log(time.timestamp);      // 1710268800000
+console.log(time.signal_band);    // "strong"
+console.log(time.accuracy_band);  // "high"
 
 // High-precision enterprise time
-const precise = await dgtn.getPrecisionTime();
-console.log(precise.accuracy); // "±4.2ms"
+const precise = await dgtn.query({ precision: true });
+console.log(precise.accuracy);    // 4.2
 
 // Submit trade event for ordering
 const order = await dgtn.submitOrderEvent({
