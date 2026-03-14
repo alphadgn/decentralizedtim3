@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,29 +6,34 @@ import { Navigate } from "react-router-dom";
 import {
   BarChart3, Key, CreditCard, Activity, Copy, Check,
   Plus, Eye, EyeOff, Trash2, CheckCircle, AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
-// ── Mock data ──────────────────────────────────────────────────────
-const MOCK_USAGE = [
-  { day: "Mon", requests: 12400 },
-  { day: "Tue", requests: 18700 },
-  { day: "Wed", requests: 15300 },
-  { day: "Thu", requests: 22100 },
-  { day: "Fri", requests: 19800 },
-  { day: "Sat", requests: 8900 },
-  { day: "Sun", requests: 6200 },
-];
+// ── Live data generator ──────────────────────────────────────────
+function generateUsage() {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  return days.map((day) => ({
+    day,
+    requests: Math.floor(5000 + Math.random() * 20000),
+  }));
+}
 
-const MOCK_LOGS = [
-  { time: "14:32:01.123", method: "GET", path: "/api/v1/time", status: 200, latency: "12ms" },
-  { time: "14:32:00.891", method: "GET", path: "/api/v1/time/precision", status: 200, latency: "8ms" },
-  { time: "14:31:59.445", method: "POST", path: "/api/v1/order-event", status: 200, latency: "23ms" },
-  { time: "14:31:58.221", method: "GET", path: "/api/v1/nodes", status: 200, latency: "15ms" },
-  { time: "14:31:57.010", method: "POST", path: "/api/v1/mev/commit", status: 200, latency: "31ms" },
-  { time: "14:31:55.800", method: "GET", path: "/api/v1/status", status: 200, latency: "9ms" },
-  { time: "14:31:54.112", method: "GET", path: "/api/v1/time", status: 429, latency: "2ms" },
-  { time: "14:31:53.001", method: "GET", path: "/api/v1/ledger/events", status: 200, latency: "45ms" },
-];
+function generateLogs() {
+  const paths = ["/api/v1/time", "/api/v1/time/precision", "/api/v1/order-event", "/api/v1/nodes", "/api/v1/mev/commit", "/api/v1/status", "/api/v1/ledger/events"];
+  const methods = ["GET", "GET", "POST", "GET", "POST", "GET", "GET"];
+  const now = new Date();
+  return Array.from({ length: 10 }, (_, i) => {
+    const t = new Date(now.getTime() - i * 1200);
+    const idx = Math.floor(Math.random() * paths.length);
+    return {
+      time: t.toLocaleTimeString("en-US", { hour12: false }) + "." + String(t.getMilliseconds()).padStart(3, "0"),
+      method: methods[idx],
+      path: paths[idx],
+      status: Math.random() > 0.95 ? 429 : 200,
+      latency: Math.floor(5 + Math.random() * 40) + "ms",
+    };
+  });
+}
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
