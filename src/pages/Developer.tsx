@@ -351,6 +351,7 @@ export default function Developer() {
     <div className="min-h-screen bg-background grid-bg">
       <Header />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-6">
+        <BackToDashboard />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-mono font-bold text-foreground mb-2">Developer Platform</h1>
           <p className="text-sm font-mono text-muted-foreground">
