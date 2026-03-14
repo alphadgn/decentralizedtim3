@@ -16,6 +16,14 @@ const ALL_CITIES = [
   { name: "Mumbai", tz: "Asia/Kolkata", flag: "🇮🇳", utcOffset: 5.5 },
   { name: "Hong Kong", tz: "Asia/Hong_Kong", flag: "🇭🇰", utcOffset: 8 },
   { name: "Nairobi", tz: "Africa/Nairobi", flag: "🇰🇪", utcOffset: 3 },
+  { name: "Cairo", tz: "Africa/Cairo", flag: "🇪🇬", utcOffset: 2 },
+  { name: "Jakarta", tz: "Asia/Jakarta", flag: "🇮🇩", utcOffset: 7 },
+  { name: "Auckland", tz: "Pacific/Auckland", flag: "🇳🇿", utcOffset: 13 },
+  { name: "Mexico City", tz: "America/Mexico_City", flag: "🇲🇽", utcOffset: -6 },
+  { name: "Seoul", tz: "Asia/Seoul", flag: "🇰🇷", utcOffset: 9 },
+  { name: "Istanbul", tz: "Europe/Istanbul", flag: "🇹🇷", utcOffset: 3 },
+  { name: "Toronto", tz: "America/Toronto", flag: "🇨🇦", utcOffset: -5 },
+  { name: "Johannesburg", tz: "Africa/Johannesburg", flag: "🇿🇦", utcOffset: 2 },
 ];
 
 const CITIES_PER_PAGE = 4;
