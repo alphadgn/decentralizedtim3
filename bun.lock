@@ -1967,7 +1967,7 @@
 
     "@solana/errors/commander": ["commander@14.0.2", "", {}, "sha512-TywoWNNRbhoD0BXs1P3ZEScW8W5iKrnbithIl0YH+uCmBd0QpPOA8yc82DS3BIE5Ma6FnBVUsJ7wVUDz4dvOWQ=="],
 
-    "@solana/rpc-transport-http/undici-types": ["undici-types@7.24.2", "", {}, "sha512-WZZjYxf4yelEyde+mBI0OYvcPlNWeGSlWTmzoIntzWKELcCSISOFWNB0XfHvmJlAtC+Ao2LQP0WYYr7iVk0yZg=="],
+    "@solana/rpc-transport-http/undici-types": ["undici-types@7.24.3", "", {}, "sha512-frL/LoWYV3AWaHtW+Oa3oNLX1k6fVDBd/4gspN4nkRwzO9tRj/R1HzDQpyXnt0H/5DKHbFpdn2BktNQl1tbFYA=="],
 
     "@solana/web3.js/@noble/curves": ["@noble/curves@1.9.7", "", { "dependencies": { "@noble/hashes": "1.8.0" } }, "sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw=="],
 
