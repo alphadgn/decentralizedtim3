@@ -153,6 +153,25 @@ function abstractResponse(data: Record<string, any>, tier: string): Record<strin
   return result;
 }
 
+// ── Security Alerts ──
+async function createSecurityAlert(
+  supabase: any,
+  alert: {
+    alert_type: string;
+    severity: string;
+    message: string;
+    ip_address?: string;
+    endpoint?: string;
+    metadata?: Record<string, any>;
+  }
+) {
+  try {
+    await supabase.from("security_alerts").insert(alert);
+  } catch (e) {
+    console.error("Failed to create security alert:", e);
+  }
+}
+
 // ── Logging ──
 async function logSecurity(
   supabase: any,
