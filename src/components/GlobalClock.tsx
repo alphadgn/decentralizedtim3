@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useNetworkTime } from "@/hooks/useNetworkTime";
 
 export function GlobalClock() {
-  const { epoch, utc, confidence, syncStatus } = useNetworkTime();
+  const { epoch, utc, confidenceBand, syncStatus } = useNetworkTime();
   
   const date = new Date(epoch);
   const hours = date.getUTCHours().toString().padStart(2, "0");
@@ -41,7 +41,7 @@ export function GlobalClock() {
 
         <div className="mt-6 flex items-center justify-center gap-6 text-xs font-mono text-muted-foreground">
           <span>EPOCH <span className="text-foreground">{epoch}</span></span>
-          <span>CONFIDENCE <span className="neon-text-green">{confidence.toFixed(2)}%</span></span>
+          <span>CONFIDENCE <span className="neon-text-green capitalize">{confidenceBand}</span></span>
           <span>STATUS <span className="neon-text-green uppercase">{syncStatus}</span></span>
         </div>
       </div>

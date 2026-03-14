@@ -44,7 +44,7 @@ const LATENCY_DATA = [
 
 export default function EnterpriseTrading() {
   const { user, loading } = useAuth();
-  const { epoch, confidence } = useNetworkTime();
+  const { epoch, signalBand } = useNetworkTime();
   const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements">("ordering");
   const [tradeEvents, setTradeEvents] = useState(generateTradeEvents(epoch));
 
@@ -79,7 +79,7 @@ export default function EnterpriseTrading() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { icon: Clock, label: "Canonical Time", value: new Date(epoch).toISOString().slice(11, 23), accent: "neon-text-cyan" },
-            { icon: TrendingUp, label: "Confidence", value: `${confidence.toFixed(2)}%`, accent: "neon-text-green" },
+            { icon: TrendingUp, label: "Signal", value: signalBand, accent: "neon-text-green" },
             { icon: Shield, label: "MEV Commits", value: `${MEV_COMMITS.filter((c) => c.status === "verified").length}/${MEV_COMMITS.length}`, accent: "neon-text-green" },
             { icon: Lock, label: "Settlement Proofs", value: "1,482", accent: "neon-text-cyan" },
           ].map((s) => (

@@ -7,36 +7,30 @@ import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe
 const API_ENDPOINTS = [
   {
     method: "GET",
-    path: "/api/v1/time",
+    path: "/api/query",
     tier: "Free",
-    description: "Returns the current Network Canonical Time with confidence score and blockchain proof.",
+    description: "Returns the current Network Canonical Time with abstracted accuracy and signal strength bands.",
     response: `{
-  "epoch": 1710268800000,
-  "utc": "2025-03-12T12:00:00.000Z",
-  "confidence": 99.97,
-  "nodeCount": 12,
-  "consensusMethod": "byzantine_median",
-  "blockchainProof": "0x7a3b...f2e1",
-  "syncStatus": "synced"
+  "timestamp": 1710268800000,
+  "accuracy_band": "high",
+  "signal_band": "strong",
+  "consensus_status": "verified"
 }`,
   },
   {
     method: "GET",
-    path: "/api/v1/time/precision",
+    path: "/api/time/precision",
     tier: "Enterprise",
-    description: "High-precision time with ±5ms accuracy target, validator signatures, and full consensus metadata.",
+    description: "High-precision time with ±5ms accuracy, full consensus metadata, and verification hashes.",
     response: `{
-  "epoch": 1710268800000,
-  "utc": "2025-03-12T12:00:00.000Z",
-  "accuracy": "±4.2ms",
-  "confidence": 99.99,
-  "consensusRound": 48291,
-  "validatorSignatures": ["0xab12...","0xcd34..."],
-  "blockchainAnchor": {
-    "chain": "ethereum",
-    "block": 19421000,
-    "txHash": "0xabc...def"
-  }
+  "timestamp": 1710268800000,
+  "accuracy": 4.2,
+  "signal_strength": "precise",
+  "consensus_hash": "7a3b...f2e1",
+  "node_count": 16,
+  "drift_ms": 0.3,
+  "sources": 16,
+  "iso": "2025-03-12T12:00:00.000Z"
 }`,
   },
   {
@@ -154,13 +148,14 @@ const dgtn = new DGTNClient({
 });
 
 // Get verified network time
-const time = await dgtn.getTime();
-console.log(time.epoch);       // 1710268800000
-console.log(time.confidence);  // 99.97
+const time = await dgtn.query();
+console.log(time.timestamp);      // 1710268800000
+console.log(time.signal_band);    // "strong"
+console.log(time.accuracy_band);  // "high"
 
 // High-precision enterprise time
-const precise = await dgtn.getPrecisionTime();
-console.log(precise.accuracy); // "±4.2ms"
+const precise = await dgtn.query({ precision: true });
+console.log(precise.accuracy);    // 4.2
 
 // Submit trade event for ordering
 const order = await dgtn.submitOrderEvent({
@@ -187,12 +182,12 @@ dgtn.onSync((t) => console.log(\`Offset: \${t.epoch - Date.now()}ms\`));`,
 client = DGTNClient(api_key="your-api-key")
 
 # Get network canonical time
-time = client.get_time()
-print(f"Epoch: {time.epoch}")
-print(f"Confidence: {time.confidence}%")
+time = client.query()
+print(f"Timestamp: {time.timestamp}")
+print(f"Signal: {time.signal_band}")
 
 # High-precision enterprise time
-precise = client.get_precision_time()
+precise = client.query(precision=True)
 print(f"Accuracy: {precise.accuracy}")
 
 # Submit trade event
@@ -227,9 +222,9 @@ func main() {
     })
 
     // Get network canonical time
-    time, _ := client.GetTime()
-    fmt.Printf("Epoch: %d\\n", time.Epoch)
-    fmt.Printf("Confidence: %.2f%%\\n", time.Confidence)
+    time, _ := client.Query()
+    fmt.Printf("Timestamp: %d\\n", time.Timestamp)
+    fmt.Printf("Signal: %s\\n", time.SignalBand)
 
     // Submit trade event
     order, _ := client.SubmitOrderEvent(dgtn.OrderEvent{
@@ -253,9 +248,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = DGTNClient::new("your-api-key");
 
     // Get network canonical time
-    let time = client.get_time().await?;
-    println!("Epoch: {}", time.epoch);
-    println!("Confidence: {:.2}%", time.confidence);
+    let time = client.query().await?;
+    println!("Timestamp: {}", time.timestamp);
+    println!("Signal: {}", time.signal_band);
 
     // Submit trade event
     let order = client.submit_order_event(OrderEvent {

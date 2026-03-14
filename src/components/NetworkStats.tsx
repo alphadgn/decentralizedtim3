@@ -3,7 +3,7 @@ import { useNetworkTime } from "@/hooks/useNetworkTime";
 import { Activity, Shield, Clock, Layers } from "lucide-react";
 
 export function NetworkStats() {
-  const { offset, nodeCount, confidence } = useNetworkTime();
+  const { nodeCount, accuracyBand, signalBand, syncStatus } = useNetworkTime();
 
   const stats = [
     {
@@ -13,14 +13,14 @@ export function NetworkStats() {
       accent: "neon-text-cyan",
     },
     {
-      label: "Network Drift",
-      value: `${offset > 0 ? "+" : ""}${offset.toFixed(3)}ms`,
+      label: "Accuracy",
+      value: accuracyBand,
       icon: Clock,
       accent: "neon-text-cyan",
     },
     {
-      label: "Confidence",
-      value: `${confidence.toFixed(2)}%`,
+      label: "Signal Strength",
+      value: signalBand,
       icon: Shield,
       accent: "neon-text-green",
     },
@@ -45,7 +45,7 @@ export function NetworkStats() {
             <stat.icon className="w-3.5 h-3.5" />
             <span className="text-xs font-mono uppercase tracking-wider">{stat.label}</span>
           </div>
-          <span className={`font-mono text-xl font-semibold ${stat.accent}`}>
+          <span className={`font-mono text-xl font-semibold ${stat.accent} capitalize`}>
             {stat.value}
           </span>
         </div>
