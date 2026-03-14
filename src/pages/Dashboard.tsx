@@ -172,7 +172,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_LOGS.map((log, i) => (
+                {logs.map((log, i) => (
                   <tr key={i} className="border-b border-border/30">
                     <td className="py-2 pr-4 text-muted-foreground">{log.time}</td>
                     <td className="py-2 pr-4">
