@@ -111,10 +111,10 @@ export default function NodeOperator() {
   if (authLoading) return null;
   if (!user) return <Navigate to="/" replace />;
 
-  const trustedCount = METRICS.filter((m) => m.reputation === "trusted").length;
-  const penalizedCount = METRICS.filter((m) => m.reputation === "penalized").length;
-  const totalStaked = METRICS.reduce((s, m) => s + parseFloat(m.staked), 0);
-  const totalSlashed = METRICS.reduce((s, m) => s + parseFloat(m.slashed), 0);
+  const trustedCount = metrics.filter((m) => m.reputation === "trusted").length;
+  const penalizedCount = metrics.filter((m) => m.reputation === "penalized").length;
+  const totalStaked = metrics.reduce((s, m) => s + parseFloat(m.staked), 0);
+  const totalSlashed = metrics.reduce((s, m) => s + parseFloat(m.slashed), 0);
 
   const tabs = [
     { id: "overview" as const, label: "Overview", icon: Activity },
