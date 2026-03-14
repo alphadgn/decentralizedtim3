@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
   BarChart3, Key, CreditCard, Activity, Copy, Check,
   Plus, Eye, EyeOff, Trash2, CheckCircle, AlertCircle,
@@ -50,6 +51,9 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
   const [showKey, setShowKey] = useState(false);
+  const [showNewKeyForm, setShowNewKeyForm] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyExpiry, setNewKeyExpiry] = useState("");
   const [usage, setUsage] = useState(generateUsage);
   const [logs, setLogs] = useState(generateLogs);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
@@ -200,10 +204,63 @@ export default function Dashboard() {
             <div className="glass-panel p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">API Keys</h2>
-                <button className="flex items-center gap-1 text-xs font-mono text-primary hover:text-primary/80 transition-colors">
+                <button
+                  onClick={() => setShowNewKeyForm(!showNewKeyForm)}
+                  className="flex items-center gap-1 text-xs font-mono text-primary hover:text-primary/80 transition-colors"
+                >
                   <Plus className="w-3.5 h-3.5" /> Generate New Key
                 </button>
               </div>
+
+              {/* New Key Form */}
+              {showNewKeyForm && (
+                <div className="border border-primary/30 rounded-lg p-4 mb-4 bg-primary/5 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1 block">Key Name</label>
+                    <input
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      placeholder="e.g. Production, Staging"
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1 block">
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      Expiration Date (optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={newKeyExpiry}
+                      onChange={(e) => setNewKeyExpiry(e.target.value)}
+                      min={new Date().toISOString().split("T")[0]}
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <p className="text-[10px] font-mono text-muted-foreground mt-1">
+                      Leave empty for no expiration. You'll be alerted 7 days before expiry.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        toast.success(`API key "${newKeyName || "Untitled"}" created${newKeyExpiry ? ` — expires ${newKeyExpiry}` : ""}`);
+                        setNewKeyName("");
+                        setNewKeyExpiry("");
+                        setShowNewKeyForm(false);
+                      }}
+                      className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2 text-xs font-mono font-semibold hover:opacity-90"
+                    >
+                      Generate Key
+                    </button>
+                    <button
+                      onClick={() => setShowNewKeyForm(false)}
+                      className="text-xs font-mono text-muted-foreground hover:text-foreground px-3 py-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               {[
                 { name: "Production", key: "dgtn_live_7f3a2e1b9c4d5f6a8b0c1d2e3f4a5b6c", created: "2025-01-15", lastUsed: "2 min ago" },
                 { name: "Development", key: "dgtn_test_1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", created: "2025-02-20", lastUsed: "1 hour ago" },

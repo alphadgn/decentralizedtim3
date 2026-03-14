@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.check-key-expiry]
 verify_jwt = false
+
+[functions.profile-api]
+verify_jwt = false
