@@ -151,7 +151,7 @@ export function RegionalClocks() {
     timerRef.current = setInterval(() => {
       setDirection(1);
       setPage((p) => (p + 1) % totalPages);
-    }, 3000);
+    }, 4500);
   }, [totalPages]);
 
   useEffect(() => {
