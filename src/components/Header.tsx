@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle, BarChart3, TrendingUp } from "lucide-react";
+import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle, BarChart3, TrendingUp, User, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
