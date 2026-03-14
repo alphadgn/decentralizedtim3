@@ -12,6 +12,8 @@ import Admin from "./pages/Admin.tsx";
 import SuperAdmin from "./pages/SuperAdmin.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import EnterpriseTrading from "./pages/EnterpriseTrading.tsx";
+import Profile from "./pages/Profile.tsx";
+import Pricing from "./pages/Pricing.tsx";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,8 @@ const App = () => (
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/enterprise/trading" element={<EnterpriseTrading />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

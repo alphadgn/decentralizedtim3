@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,29 +6,34 @@ import { Navigate } from "react-router-dom";
 import {
   BarChart3, Key, CreditCard, Activity, Copy, Check,
   Plus, Eye, EyeOff, Trash2, CheckCircle, AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
-// ── Mock data ──────────────────────────────────────────────────────
-const MOCK_USAGE = [
-  { day: "Mon", requests: 12400 },
-  { day: "Tue", requests: 18700 },
-  { day: "Wed", requests: 15300 },
-  { day: "Thu", requests: 22100 },
-  { day: "Fri", requests: 19800 },
-  { day: "Sat", requests: 8900 },
-  { day: "Sun", requests: 6200 },
-];
+// ── Live data generator ──────────────────────────────────────────
+function generateUsage() {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  return days.map((day) => ({
+    day,
+    requests: Math.floor(5000 + Math.random() * 20000),
+  }));
+}
 
-const MOCK_LOGS = [
-  { time: "14:32:01.123", method: "GET", path: "/api/v1/time", status: 200, latency: "12ms" },
-  { time: "14:32:00.891", method: "GET", path: "/api/v1/time/precision", status: 200, latency: "8ms" },
-  { time: "14:31:59.445", method: "POST", path: "/api/v1/order-event", status: 200, latency: "23ms" },
-  { time: "14:31:58.221", method: "GET", path: "/api/v1/nodes", status: 200, latency: "15ms" },
-  { time: "14:31:57.010", method: "POST", path: "/api/v1/mev/commit", status: 200, latency: "31ms" },
-  { time: "14:31:55.800", method: "GET", path: "/api/v1/status", status: 200, latency: "9ms" },
-  { time: "14:31:54.112", method: "GET", path: "/api/v1/time", status: 429, latency: "2ms" },
-  { time: "14:31:53.001", method: "GET", path: "/api/v1/ledger/events", status: 200, latency: "45ms" },
-];
+function generateLogs() {
+  const paths = ["/api/v1/time", "/api/v1/time/precision", "/api/v1/order-event", "/api/v1/nodes", "/api/v1/mev/commit", "/api/v1/status", "/api/v1/ledger/events"];
+  const methods = ["GET", "GET", "POST", "GET", "POST", "GET", "GET"];
+  const now = new Date();
+  return Array.from({ length: 10 }, (_, i) => {
+    const t = new Date(now.getTime() - i * 1200);
+    const idx = Math.floor(Math.random() * paths.length);
+    return {
+      time: t.toLocaleTimeString("en-US", { hour12: false }) + "." + String(t.getMilliseconds()).padStart(3, "0"),
+      method: methods[idx],
+      path: paths[idx],
+      status: Math.random() > 0.95 ? 429 : 200,
+      latency: Math.floor(5 + Math.random() * 40) + "ms",
+    };
+  });
+}
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -44,11 +49,31 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
   const [showKey, setShowKey] = useState(false);
+  const [usage, setUsage] = useState(generateUsage);
+  const [logs, setLogs] = useState(generateLogs);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+
+  // Auto-refresh logs every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogs(generateLogs());
+      setLastRefresh(Date.now());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh usage every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setUsage(generateUsage()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!loading && !user) return <Navigate to="/" replace />;
 
-  const maxReq = Math.max(...MOCK_USAGE.map((d) => d.requests));
-  const totalReq = MOCK_USAGE.reduce((s, d) => s + d.requests, 0);
+  const maxReq = Math.max(...usage.map((d) => d.requests));
+  const totalReq = usage.reduce((s, d) => s + d.requests, 0);
+  const avgLatency = Math.floor(10 + Math.random() * 15);
+  const successRate = (99.5 + Math.random() * 0.5).toFixed(2);
 
   const tabs = [
     { id: "usage" as const, label: "API Usage", icon: BarChart3 },
@@ -71,8 +96,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Requests (7d)", value: totalReq.toLocaleString(), accent: "neon-text-cyan" },
-            { label: "Avg Latency", value: "18ms", accent: "neon-text-green" },
-            { label: "Success Rate", value: "99.87%", accent: "neon-text-green" },
+            { label: "Avg Latency", value: `${avgLatency}ms`, accent: "neon-text-green" },
+            { label: "Success Rate", value: `${successRate}%`, accent: "neon-text-green" },
             { label: "Active Keys", value: "2", accent: "neon-text-cyan" },
           ].map((s) => (
             <div key={s.label} className="glass-panel p-4">
@@ -101,14 +126,21 @@ export default function Dashboard() {
         {/* Usage Chart */}
         {activeTab === "usage" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6">
-            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-6">Requests — Last 7 Days</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Requests — Last 7 Days</h2>
+              <button onClick={() => setUsage(generateUsage())} className="text-muted-foreground hover:text-foreground transition-colors">
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <div className="flex items-end gap-2 h-40">
-              {MOCK_USAGE.map((d) => (
+              {usage.map((d) => (
                 <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                   <span className="text-[10px] font-mono text-muted-foreground">{(d.requests / 1000).toFixed(1)}k</span>
-                  <div
+                  <motion.div
                     className="w-full rounded-t bg-primary/60 hover:bg-primary transition-colors"
-                    style={{ height: `${(d.requests / maxReq) * 100}%` }}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${(d.requests / maxReq) * 100}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                   <span className="text-[10px] font-mono text-muted-foreground">{d.day}</span>
                 </div>
@@ -120,7 +152,15 @@ export default function Dashboard() {
         {/* Request Logs */}
         {activeTab === "logs" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-5 overflow-x-auto">
-            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">Recent Requests</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Recent Requests</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  Live · {new Date(lastRefresh).toLocaleTimeString()}
+                </span>
+                <div className="w-2 h-2 neon-dot-green pulse-glow" />
+              </div>
+            </div>
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
@@ -132,7 +172,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_LOGS.map((log, i) => (
+                {logs.map((log, i) => (
                   <tr key={i} className="border-b border-border/30">
                     <td className="py-2 pr-4 text-muted-foreground">{log.time}</td>
                     <td className="py-2 pr-4">

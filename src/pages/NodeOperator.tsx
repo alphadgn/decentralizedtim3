@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +38,7 @@ function generateNodeMetrics() {
   });
 }
 
-const METRICS = generateNodeMetrics();
+// Use state for live-refreshing metrics
 
 // Reputation badge component
 function ReputationBadge({ reputation }: { reputation: string }) {
@@ -64,6 +64,13 @@ export default function NodeOperator() {
   const [region, setRegion] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [activeTab, setActiveTab] = useState<"overview" | "staking" | "reputation" | "drift">("overview");
+  const [metrics, setMetrics] = useState(generateNodeMetrics);
+
+  // Auto-refresh metrics every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setMetrics(generateNodeMetrics()), 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: myNodes = [] } = useQuery({
     queryKey: ["my-nodes", userId],
@@ -104,10 +111,10 @@ export default function NodeOperator() {
   if (authLoading) return null;
   if (!user) return <Navigate to="/" replace />;
 
-  const trustedCount = METRICS.filter((m) => m.reputation === "trusted").length;
-  const penalizedCount = METRICS.filter((m) => m.reputation === "penalized").length;
-  const totalStaked = METRICS.reduce((s, m) => s + parseFloat(m.staked), 0);
-  const totalSlashed = METRICS.reduce((s, m) => s + parseFloat(m.slashed), 0);
+  const trustedCount = metrics.filter((m) => m.reputation === "trusted").length;
+  const penalizedCount = metrics.filter((m) => m.reputation === "penalized").length;
+  const totalStaked = metrics.reduce((s, m) => s + parseFloat(m.staked), 0);
+  const totalSlashed = metrics.reduce((s, m) => s + parseFloat(m.slashed), 0);
 
   const tabs = [
     { id: "overview" as const, label: "Overview", icon: Activity },
@@ -128,9 +135,9 @@ export default function NodeOperator() {
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Total Nodes", value: METRICS.length, icon: Activity, color: "neon-text-cyan" },
+            { label: "Total Nodes", value: metrics.length, icon: Activity, color: "neon-text-cyan" },
             { label: "Total Staked", value: `${(totalStaked / 1000).toFixed(1)}k DGTN`, icon: Coins, color: "neon-text-cyan" },
-            { label: "Trusted Nodes", value: `${trustedCount}/${METRICS.length}`, icon: Shield, color: "neon-text-green" },
+            { label: "Trusted Nodes", value: `${trustedCount}/${metrics.length}`, icon: Shield, color: "neon-text-green" },
             { label: "Total Slashed", value: `${totalSlashed.toFixed(0)} DGTN`, icon: Slash, color: penalizedCount > 0 ? "text-destructive" : "neon-text-green" },
           ].map((stat) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-4">
@@ -175,7 +182,7 @@ export default function NodeOperator() {
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.map((m) => (
+                  {metrics.map((m) => (
                     <tr key={m.id} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="py-2 px-2 text-foreground">{m.region}</td>
                       <td className="py-2 px-2 text-right neon-text-green">{m.uptime.toFixed(2)}%</td>
@@ -275,7 +282,7 @@ export default function NodeOperator() {
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.map((m) => {
+                  {metrics.map((m) => {
                     const effective = parseFloat(m.staked) - parseFloat(m.slashed);
                     return (
                       <tr key={m.id} className="border-b border-border/50">
@@ -348,7 +355,7 @@ export default function NodeOperator() {
                   </tr>
                 </thead>
                 <tbody>
-                  {METRICS.sort((a, b) => parseFloat(b.trustScore) - parseFloat(a.trustScore)).map((m) => (
+                  {[...metrics].sort((a, b) => parseFloat(b.trustScore) - parseFloat(a.trustScore)).map((m) => (
                     <tr key={m.id} className="border-b border-border/50">
                       <td className="py-2 px-2 text-foreground">{m.region}</td>
                       <td className="py-2 px-2 text-right">
@@ -373,7 +380,7 @@ export default function NodeOperator() {
             <div className="glass-panel p-6">
               <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">Node Drift Distribution (ms)</h2>
               <div className="flex items-end gap-1 h-40">
-                {METRICS.map((m) => {
+                {metrics.map((m) => {
                   const h = Math.min(100, Math.abs(parseFloat(m.drift)) * 15 + 10);
                   const color = m.reputation === "trusted"
                     ? "hsl(var(--neon-green))"
