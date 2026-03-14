@@ -140,19 +140,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Double-check approval before syncing
-    const { data: approvedCheck } = await supabase
-      .from("approved_emails")
-      .select("id")
-      .eq("email", email.toLowerCase())
-      .maybeSingle();
+    // Super admin is exempt from approval check
+    const isSuperAdminEmail = email.toLowerCase() === SUPER_ADMIN_EMAIL;
 
-    if (!approvedCheck) {
-      return new Response(JSON.stringify({ error: "Email not approved" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isSuperAdminEmail) {
+      // Double-check approval before syncing
+      const { data: approvedCheck } = await supabase
+        .from("approved_emails")
+        .select("id")
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (!approvedCheck) {
+        return new Response(JSON.stringify({ error: "Email not approved" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
+
+    // Determine correct role
+    const correctRole = isSuperAdminEmail ? "super_admin" : "user";
 
     // Check if profile already exists
     const { data: existing } = await supabase
@@ -162,16 +170,38 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!existing) {
+      // Create profile
       await supabase.from("profiles").insert({
         user_id: userId,
-        display_name: "User",
+        display_name: isSuperAdminEmail ? "Admin" : "User",
       });
 
-      const role = email.toLowerCase() === SUPER_ADMIN_EMAIL ? "super_admin" : "user";
+      // Create role
       await supabase.from("user_roles").insert({
         user_id: userId,
-        role,
+        role: correctRole,
       });
+    } else {
+      // ALWAYS enforce correct role for super admin email on every sync
+      if (isSuperAdminEmail) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("id, role")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (roleData && roleData.role !== "super_admin") {
+          await supabase
+            .from("user_roles")
+            .update({ role: "super_admin" })
+            .eq("id", roleData.id);
+        } else if (!roleData) {
+          await supabase.from("user_roles").insert({
+            user_id: userId,
+            role: "super_admin",
+          });
+        }
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {

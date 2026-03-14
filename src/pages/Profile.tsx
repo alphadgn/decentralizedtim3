@@ -4,43 +4,37 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   User, Mail, Clock, Shield, Save, Key, Bell, Monitor, Upload, Camera, ArrowLeft,
 } from "lucide-react";
 
 export default function Profile() {
-  const { user, userId, role, loading } = useAuth();
+  const { user, userId, role, loading, getAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const location = useLocation();
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const getAccessToken = async () => {
-    try {
-      const { getAccessToken: getToken } = await import("@privy-io/react-auth").then(m => {
-        // fallback — we pull it from useAuth indirectly
-        return { getAccessToken: null };
-      });
-    } catch {}
-    return null;
+  // Helper: invoke profile-api with Privy token
+  const invokeProfileApi = async (body: Record<string, unknown>) => {
+    const token = await getAccessToken();
+    const { data, error } = await supabase.functions.invoke("profile-api", {
+      body,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data;
   };
 
   // Use edge function for profile data
   const { data: profile } = useQuery({
     queryKey: ["my-profile", userId],
-    queryFn: async () => {
-      if (!userId) return null;
-      const { data, error } = await supabase.functions.invoke("profile-api", {
-        body: { action: "get_profile", userId },
-      });
-      if (error) throw error;
-      return data?.profile;
-    },
+    queryFn: () => invokeProfileApi({ action: "get_profile", userId }).then((d) => d?.profile),
     enabled: !!userId,
   });
 
@@ -75,14 +69,7 @@ export default function Profile() {
   // Preferences via edge function
   const { data: preferences } = useQuery({
     queryKey: ["user-preferences", userId],
-    queryFn: async () => {
-      if (!userId) return null;
-      const { data, error } = await supabase.functions.invoke("profile-api", {
-        body: { action: "get_preferences", userId },
-      });
-      if (error) throw error;
-      return data?.preferences;
-    },
+    queryFn: () => invokeProfileApi({ action: "get_preferences", userId }).then((d) => d?.preferences),
     enabled: !!userId,
   });
 
@@ -105,13 +92,7 @@ export default function Profile() {
   const togglePref = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       if (!userId) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase.functions.invoke("profile-api", {
-        body: { action: "toggle_preference", userId, key, value },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
+      await invokeProfileApi({ action: "toggle_preference", userId, key, value });
       setPrefs((prev) => ({ ...prev, [key]: value }));
     },
     onSuccess: (_, { key, value }) => {
@@ -144,17 +125,17 @@ export default function Profile() {
 
     setUploading(true);
     try {
+      const token = await getAccessToken();
       const formData = new FormData();
       formData.append("file", file);
       formData.append("userId", userId);
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       const response = await fetch(`${supabaseUrl}/functions/v1/profile-api`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${anonKey}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -173,14 +154,7 @@ export default function Profile() {
   };
 
   const updateProfile = useMutation({
-    mutationFn: async () => {
-      if (!userId) throw new Error("Not authenticated");
-      const { data, error } = await supabase.functions.invoke("profile-api", {
-        body: { action: "update_profile", userId, display_name: displayName, avatar_url: avatarUrl || null },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-    },
+    mutationFn: () => invokeProfileApi({ action: "update_profile", userId, display_name: displayName, avatar_url: avatarUrl || null }),
     onSuccess: () => {
       toast.success("Profile updated");
       queryClient.invalidateQueries({ queryKey: ["my-profile"] });
