@@ -7,36 +7,30 @@ import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe
 const API_ENDPOINTS = [
   {
     method: "GET",
-    path: "/api/v1/time",
+    path: "/api/query",
     tier: "Free",
-    description: "Returns the current Network Canonical Time with confidence score and blockchain proof.",
+    description: "Returns the current Network Canonical Time with abstracted accuracy and signal strength bands.",
     response: `{
-  "epoch": 1710268800000,
-  "utc": "2025-03-12T12:00:00.000Z",
-  "confidence": 99.97,
-  "nodeCount": 12,
-  "consensusMethod": "byzantine_median",
-  "blockchainProof": "0x7a3b...f2e1",
-  "syncStatus": "synced"
+  "timestamp": 1710268800000,
+  "accuracy_band": "high",
+  "signal_band": "strong",
+  "consensus_status": "verified"
 }`,
   },
   {
     method: "GET",
-    path: "/api/v1/time/precision",
+    path: "/api/time/precision",
     tier: "Enterprise",
-    description: "High-precision time with ±5ms accuracy target, validator signatures, and full consensus metadata.",
+    description: "High-precision time with ±5ms accuracy, full consensus metadata, and verification hashes.",
     response: `{
-  "epoch": 1710268800000,
-  "utc": "2025-03-12T12:00:00.000Z",
-  "accuracy": "±4.2ms",
-  "confidence": 99.99,
-  "consensusRound": 48291,
-  "validatorSignatures": ["0xab12...","0xcd34..."],
-  "blockchainAnchor": {
-    "chain": "ethereum",
-    "block": 19421000,
-    "txHash": "0xabc...def"
-  }
+  "timestamp": 1710268800000,
+  "accuracy": 4.2,
+  "signal_strength": "precise",
+  "consensus_hash": "7a3b...f2e1",
+  "node_count": 16,
+  "drift_ms": 0.3,
+  "sources": 16,
+  "iso": "2025-03-12T12:00:00.000Z"
 }`,
   },
   {
