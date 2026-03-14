@@ -37,6 +37,8 @@ const App = () => (
             <Route path="/developer" element={<Developer />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/enterprise/trading" element={<EnterpriseTrading />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
