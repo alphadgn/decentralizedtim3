@@ -534,6 +534,16 @@ Deno.serve(async (req) => {
         blocked_until: new Date(Date.now() + 86400_000).toISOString(), // 24h block
       }, { onConflict: "ip_address,endpoint" });
 
+      // Create security alert for honeypot hit
+      await createSecurityAlert(supabase, {
+        alert_type: "honeypot_hit",
+        severity: "critical",
+        message: `Honeypot accessed: ${path} from IP ${ip}`,
+        ip_address: ip,
+        endpoint: path,
+        metadata: { user_agent: userAgent, raw_path: url.pathname },
+      });
+
       return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
