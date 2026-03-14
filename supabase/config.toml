@@ -2,3 +2,15 @@ project_id = "gvaemdmydxgtvdhzwera"
 
 [functions.sync-privy-user]
 verify_jwt = false
+
+[functions.api-gateway]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.time-api]
+verify_jwt = false
+
+[functions.order-event]
+verify_jwt = false

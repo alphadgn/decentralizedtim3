@@ -1,11 +1,15 @@
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
-import { Check, Zap, Shield, Globe, ArrowRight } from "lucide-react";
+import { Check, Zap, Shield, Globe, ArrowRight, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const PLANS = [
   {
     name: "Free",
+    tier: "free",
     price: "$0",
     period: "/month",
     description: "For developers exploring decentralized time",
@@ -23,6 +27,7 @@ const PLANS = [
   },
   {
     name: "Pro",
+    tier: "pro",
     price: "$99",
     period: "/month",
     description: "For teams building production applications",
@@ -40,6 +45,7 @@ const PLANS = [
   },
   {
     name: "Enterprise",
+    tier: "enterprise",
     price: "$2,499",
     period: "/month",
     description: "For institutions requiring ±5ms precision",
@@ -70,10 +76,68 @@ const COMPARISON = [
   { feature: "Webhooks", free: "—", pro: "✓", enterprise: "✓" },
   { feature: "Analytics", free: "Basic", pro: "Advanced", enterprise: "Full" },
   { feature: "Support", free: "Community", pro: "Email (24h)", enterprise: "Dedicated" },
+  { feature: "Request Signing", free: "—", pro: "HMAC-SHA256", enterprise: "HMAC-SHA256" },
+  { feature: "Response Fields", free: "Abstracted", pro: "Expanded", enterprise: "Full" },
+  { feature: "Rate Limit", free: "10/min", pro: "60/min", enterprise: "300/min" },
 ];
 
 export default function Pricing() {
-  const { login, user } = useAuth();
+  const { login, user, userId } = useAuth();
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
+
+  const email = (user as any)?.email?.address ?? null;
+
+  const handleCheckout = async (tier: string) => {
+    if (!user) {
+      login();
+      return;
+    }
+
+    if (tier === "free") {
+      toast.info("You're already on the Free plan!");
+      return;
+    }
+
+    if (tier === "enterprise") {
+      // Enterprise = contact sales
+      window.open("mailto:sales@dgtn.io?subject=Enterprise%20Plan%20Inquiry", "_blank");
+      return;
+    }
+
+    setLoadingTier(tier);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          tier,
+          email,
+          userId,
+          returnUrl: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.code === "STRIPE_NOT_CONFIGURED" || data?.code === "PRICE_NOT_CONFIGURED") {
+        toast.info("Billing is being configured. We'll notify you when it's ready.");
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("Failed to create checkout session");
+      }
+    } catch (e: any) {
+      // Handle 503 gracefully — Stripe not yet configured
+      if (e?.message?.includes("503") || e?.context?.status === 503) {
+        toast.info("Billing is being configured. We'll notify you when it's ready.");
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoadingTier(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background grid-bg">
@@ -123,15 +187,22 @@ export default function Pricing() {
                 ))}
               </ul>
               <button
-                onClick={() => !user && login()}
-                className={`flex items-center justify-center gap-2 w-full rounded-lg px-4 py-2.5 text-sm font-mono font-semibold transition-all ${
+                onClick={() => handleCheckout(plan.tier)}
+                disabled={loadingTier === plan.tier}
+                className={`flex items-center justify-center gap-2 w-full rounded-lg px-4 py-2.5 text-sm font-mono font-semibold transition-all disabled:opacity-50 ${
                   plan.highlighted
                     ? "bg-primary text-primary-foreground hover:opacity-90"
                     : "bg-secondary text-foreground hover:bg-secondary/80"
                 }`}
               >
-                {plan.cta}
-                <ArrowRight className="w-3.5 h-3.5" />
+                {loadingTier === plan.tier ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    {plan.cta}
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
             </motion.div>
           ))}
@@ -171,6 +242,8 @@ export default function Pricing() {
               { q: "What happens if I exceed my API limit?", a: "Requests are throttled with a 429 status. No overage charges on Free/Pro plans." },
               { q: "Is there a free trial for Enterprise?", a: "Yes, we offer a 14-day Enterprise trial. Contact sales to get started." },
               { q: "Do you offer annual billing?", a: "Yes — save 20% with annual plans. Contact us for details." },
+              { q: "How does request signing work?", a: "Pro and Enterprise tiers require HMAC-SHA256 signed requests for added security. Documentation is available in your developer dashboard." },
+              { q: "What data do different tiers receive?", a: "Free receives abstracted bands, Pro gets expanded analytics, Enterprise gets full precision data. All protocol logic remains server-side." },
             ].map((faq) => (
               <div key={faq.q}>
                 <div className="text-xs font-mono font-semibold text-foreground mb-1">{faq.q}</div>
