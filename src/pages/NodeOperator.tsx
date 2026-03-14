@@ -135,9 +135,9 @@ export default function NodeOperator() {
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Total Nodes", value: METRICS.length, icon: Activity, color: "neon-text-cyan" },
+            { label: "Total Nodes", value: metrics.length, icon: Activity, color: "neon-text-cyan" },
             { label: "Total Staked", value: `${(totalStaked / 1000).toFixed(1)}k DGTN`, icon: Coins, color: "neon-text-cyan" },
-            { label: "Trusted Nodes", value: `${trustedCount}/${METRICS.length}`, icon: Shield, color: "neon-text-green" },
+            { label: "Trusted Nodes", value: `${trustedCount}/${metrics.length}`, icon: Shield, color: "neon-text-green" },
             { label: "Total Slashed", value: `${totalSlashed.toFixed(0)} DGTN`, icon: Slash, color: penalizedCount > 0 ? "text-destructive" : "neon-text-green" },
           ].map((stat) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-panel p-4">
