@@ -4,31 +4,42 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  User, Mail, Clock, Shield, Save, Key, Bell, Monitor, Upload, Camera,
+  User, Mail, Clock, Shield, Save, Key, Bell, Monitor, Upload, Camera, ArrowLeft,
 } from "lucide-react";
 
 export default function Profile() {
   const { user, userId, role, loading } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const getAccessToken = async () => {
+    try {
+      const { getAccessToken: getToken } = await import("@privy-io/react-auth").then(m => {
+        // fallback — we pull it from useAuth indirectly
+        return { getAccessToken: null };
+      });
+    } catch {}
+    return null;
+  };
+
+  // Use edge function for profile data
   const { data: profile } = useQuery({
     queryKey: ["my-profile", userId],
     queryFn: async () => {
       if (!userId) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("profile-api", {
+        body: { action: "get_profile", userId },
+      });
       if (error) throw error;
-      return data;
+      return data?.profile;
     },
     enabled: !!userId,
   });
@@ -61,18 +72,16 @@ export default function Profile() {
     enabled: !!userId,
   });
 
-  // Preferences
+  // Preferences via edge function
   const { data: preferences } = useQuery({
     queryKey: ["user-preferences", userId],
     queryFn: async () => {
       if (!userId) return null;
-      const { data, error } = await supabase
-        .from("user_preferences")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("profile-api", {
+        body: { action: "get_preferences", userId },
+      });
       if (error) throw error;
-      return data;
+      return data?.preferences;
     },
     enabled: !!userId,
   });
@@ -97,22 +106,13 @@ export default function Profile() {
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       if (!userId) throw new Error("Not authenticated");
 
-      const updated = { ...prefs, [key]: value };
+      const { data, error } = await supabase.functions.invoke("profile-api", {
+        body: { action: "toggle_preference", userId, key, value },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      if (preferences) {
-        const { error } = await supabase
-          .from("user_preferences")
-          .update({ [key]: value, updated_at: new Date().toISOString() })
-          .eq("user_id", userId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_preferences")
-          .insert({ user_id: userId, ...updated });
-        if (error) throw error;
-      }
-
-      setPrefs(updated);
+      setPrefs((prev) => ({ ...prev, [key]: value }));
     },
     onSuccess: (_, { key, value }) => {
       queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
@@ -133,7 +133,6 @@ export default function Profile() {
     const file = event.target.files?.[0];
     if (!file || !userId) return;
 
-    // Validate file
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
@@ -145,31 +144,25 @@ export default function Profile() {
 
     setUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${userId}/avatar.${fileExt}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", userId);
 
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { upsert: true });
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      if (uploadError) throw uploadError;
+      const response = await fetch(`${supabaseUrl}/functions/v1/profile-api`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: formData,
+      });
 
-      const { data: { publicUrl } } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Upload failed");
 
-      // Add cache-busting param
-      const url = `${publicUrl}?t=${Date.now()}`;
-      setAvatarUrl(url);
-
-      // Save to profile immediately
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: url })
-        .eq("user_id", userId);
-
-      if (updateError) throw updateError;
-
+      setAvatarUrl(result.avatar_url);
       queryClient.invalidateQueries({ queryKey: ["my-profile"] });
       toast.success("Profile picture updated");
     } catch (e: any) {
@@ -182,11 +175,11 @@ export default function Profile() {
   const updateProfile = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error("Not authenticated");
-      const { error } = await supabase
-        .from("profiles")
-        .update({ display_name: displayName, avatar_url: avatarUrl || null })
-        .eq("user_id", userId);
+      const { data, error } = await supabase.functions.invoke("profile-api", {
+        body: { action: "update_profile", userId, display_name: displayName, avatar_url: avatarUrl || null },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       toast.success("Profile updated");
@@ -217,6 +210,15 @@ export default function Profile() {
     <div className="min-h-screen bg-background grid-bg">
       <Header />
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-8 space-y-6">
+        {/* Back to Dashboard */}
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </button>
+
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-mono font-bold text-foreground mb-2">Profile & Settings</h1>
           <p className="text-sm font-mono text-muted-foreground">Manage your account and preferences</p>
@@ -225,7 +227,6 @@ export default function Profile() {
         {/* Profile Card */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-6">
           <div className="flex items-start gap-5">
-            {/* Avatar with upload */}
             <div className="relative group">
               <div className="w-16 h-16 rounded-full bg-primary/20 border-2 border-primary/50 flex items-center justify-center shrink-0 overflow-hidden">
                 {avatarUrl ? (
