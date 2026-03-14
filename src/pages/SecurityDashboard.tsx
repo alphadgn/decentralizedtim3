@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import {
   ShieldAlert,
@@ -13,6 +13,8 @@ import {
   Activity,
   RefreshCw,
   Search,
+  BellRing,
+  CheckCircle,
 } from "lucide-react";
 import {
   Table,
