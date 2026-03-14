@@ -248,9 +248,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = DGTNClient::new("your-api-key");
 
     // Get network canonical time
-    let time = client.get_time().await?;
-    println!("Epoch: {}", time.epoch);
-    println!("Confidence: {:.2}%", time.confidence);
+    let time = client.query().await?;
+    println!("Timestamp: {}", time.timestamp);
+    println!("Signal: {}", time.signal_band);
 
     // Submit trade event
     let order = client.submit_order_event(OrderEvent {
