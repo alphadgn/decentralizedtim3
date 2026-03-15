@@ -75,20 +75,16 @@ export function useAuth() {
 
     // Always invoke sync to ensure role enforcement (especially super_admin)
     const accessToken2 = await getAccessToken();
-    await supabase.functions.invoke("sync-privy-user", {
+    const { data: syncData } = await supabase.functions.invoke("sync-privy-user", {
       body: { email, userId },
       headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
     });
 
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
+    // Use role returned directly from edge function (avoids RLS blocking)
+    const syncedRole = syncData?.role ?? null;
 
     setState({
-      role: roleData?.role ?? null,
+      role: syncedRole,
       loading: false,
       userId,
       blocked: false,
