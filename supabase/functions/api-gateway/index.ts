@@ -315,6 +315,7 @@ const SERVICE_MAP: Record<string, string> = {
   "/api/risk": "risk-engine",
   "/api/order": "order-engine",
   "/api/anchors": "signal-engine",
+  "/api/anchors/status": "signal-engine",
 };
 
 async function routeToService(
