@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe, ShieldAlert, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe, ShieldAlert, CheckCircle2, AlertTriangle, Clock, XCircle } from "lucide-react";
 
 // ── API Endpoints ──────────────────────────────────────────────────
 const API_ENDPOINTS = [
@@ -366,6 +366,38 @@ export default function Developer() {
     },
   });
 
+  // Hourly chain integrity scan results from security_alerts
+  const { data: hourlyScans, isLoading: hourlyLoading } = useQuery({
+    queryKey: ["developer-hourly-integrity-scans"],
+    enabled: isSuperAdmin,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await supabase
+        .from("security_alerts")
+        .select("id, alert_type, severity, message, created_at, acknowledged, metadata")
+        .eq("alert_type", "hash_chain_tamper")
+        .order("created_at", { ascending: false })
+        .limit(24);
+
+      if (error) throw error;
+
+      // Also fetch latest integrity check result (even if clean — no alert created)
+      const { data: latestLog } = await supabase
+        .from("security_logs")
+        .select("id")
+        .order("chain_index", { ascending: false })
+        .limit(1);
+
+      const totalLogEntries = latestLog?.length ?? 0;
+
+      return {
+        alerts: data ?? [],
+        hasLogs: totalLogEntries > 0,
+      };
+    },
+  });
+
   const tabs: { id: TabId; label: string; icon: typeof Terminal }[] = [
     { id: "api", label: "REST API", icon: Terminal },
     { id: "sdk", label: "SDKs", icon: Code },
@@ -425,7 +457,89 @@ export default function Developer() {
           </div>
         )}
 
-        {/* Quick-links */}
+        {/* Hourly Chain Integrity Scans */}
+        {isSuperAdmin && (
+          <div className="glass-panel p-5 space-y-4 border border-border/60">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-mono uppercase tracking-widest text-foreground">Hourly Chain Integrity Scans</h2>
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground">
+              Automated hash-chain verification runs every hour via background job. Tampered entries trigger critical alerts automatically.
+            </p>
+
+            {hourlyLoading ? (
+              <p className="text-xs font-mono text-muted-foreground">Loading integrity scan history...</p>
+            ) : (hourlyScans?.alerts?.length ?? 0) === 0 ? (
+              <div className="bg-secondary/50 rounded-lg p-4 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
+                <div>
+                  <p className="text-xs font-mono font-semibold text-foreground">Chain Integrity — All Clear</p>
+                  <p className="text-[10px] font-mono text-muted-foreground">
+                    {hourlyScans?.hasLogs
+                      ? "No tampered entries detected across all hourly scans. Hash chain is intact."
+                      : "No security log entries recorded yet. Integrity scans will begin once activity is logged."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {hourlyScans!.alerts.map((alert) => {
+                  const meta = alert.metadata as Record<string, unknown> | null;
+                  const tamperedCount = (meta?.tampered_count as number) ?? 0;
+                  const tamperedIds = (meta?.tampered_entry_ids as string[]) ?? [];
+                  const scanTime = new Date(alert.created_at).toLocaleString();
+
+                  return (
+                    <div
+                      key={alert.id}
+                      className={`rounded-lg p-3 border ${
+                        alert.acknowledged
+                          ? "border-border/40 bg-secondary/30"
+                          : "border-destructive/40 bg-destructive/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {alert.acknowledged ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-destructive" />
+                        )}
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                          {scanTime}
+                        </span>
+                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
+                          alert.acknowledged ? "bg-muted text-muted-foreground" : "bg-destructive/20 text-destructive"
+                        }`}>
+                          {alert.acknowledged ? "ACKNOWLEDGED" : "CRITICAL"}
+                        </span>
+                      </div>
+                      <p className="text-xs font-mono text-foreground mb-1">{alert.message}</p>
+                      {tamperedIds.length > 0 && (
+                        <div className="mt-2 space-y-0.5">
+                          <p className="text-[10px] font-mono text-muted-foreground">
+                            {tamperedCount} tampered {tamperedCount === 1 ? "entry" : "entries"} detected:
+                          </p>
+                          {tamperedIds.slice(0, 5).map((id: string, i: number) => (
+                            <p key={i} className="text-[10px] font-mono text-foreground pl-2">
+                              • {typeof id === "string" ? id.slice(0, 12) + "..." : String(id)}
+                            </p>
+                          ))}
+                          {tamperedCount > 5 && (
+                            <p className="text-[10px] font-mono text-muted-foreground pl-2">
+                              ...and {tamperedCount - 5} more
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { icon: Globe, label: "Public API", desc: "100K req/mo free", onClick: () => setActiveTab("api") },
