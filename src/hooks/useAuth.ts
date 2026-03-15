@@ -83,7 +83,7 @@ export function useAuth() {
     }
 
     // Step 2: Approved — sync profile & role
-    const userId = await emailToUuid(email.toLowerCase());
+    const userId = await emailToUuid(email);
     const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
  
     // Always invoke sync to ensure role enforcement (especially super_admin)

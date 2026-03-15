@@ -26,7 +26,7 @@ const App = () => (
         theme: "dark",
         accentColor: "#00d4ff",
       },
-      loginMethods: ["email", "wallet", "google"],
+      loginMethods: ["email", "wallet"],
     }}
   >
     <QueryClientProvider client={queryClient}>

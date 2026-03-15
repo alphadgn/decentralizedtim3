@@ -166,7 +166,7 @@ export default function Profile() {
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
 
-  const email = (user as any)?.email?.address ?? (user as any)?.google?.email ?? (user as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? "—";
+  const email = extractPrivyEmail(user) ?? "—";
   const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
   const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
   const isSuperAdminAccount = (email !== "—" && email?.toLowerCase() === SUPER_ADMIN_EMAIL) || (userId === SUPER_ADMIN_USER_ID);

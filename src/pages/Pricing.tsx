@@ -87,7 +87,7 @@ export default function Pricing() {
   const { login, user, userId } = useAuth();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
-  const email = (user as any)?.email?.address ?? (user as any)?.google?.email ?? (user as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? null;
+  const email = extractPrivyEmail(user);
 
   const handleCheckout = async (tier: string) => {
     if (!user) {
