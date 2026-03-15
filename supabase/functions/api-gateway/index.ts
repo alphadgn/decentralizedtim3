@@ -746,6 +746,65 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Super-admin security scan endpoints ──
+    if (path === "/api/security/chain-integrity" || path === "/api/security/daily-scans") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (path === "/api/security/chain-integrity") {
+        const chainReport = await verifySecurityLogChain(supabase);
+
+        if (chainReport.tampered_entries.length > 0) {
+          const startOfDay = new Date();
+          startOfDay.setUTCHours(0, 0, 0, 0);
+
+          const { data: existingTamperAlert } = await supabase
+            .from("security_alerts")
+            .select("id")
+            .eq("alert_type", "hash_chain_tamper")
+            .gte("created_at", startOfDay.toISOString())
+            .limit(1);
+
+          if (!existingTamperAlert || existingTamperAlert.length === 0) {
+            await createSecurityAlert(supabase, {
+              alert_type: "hash_chain_tamper",
+              severity: "critical",
+              message: `${chainReport.tampered_entries.length} tampered security log entries detected`,
+              endpoint: path,
+              ip_address: ip,
+              metadata: {
+                tampered_entry_ids: chainReport.tampered_entries.slice(0, 20).map((entry) => entry.id),
+              },
+            });
+          }
+        }
+
+        return new Response(JSON.stringify(chainReport), {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": String(remaining),
+            "X-Response-Tier": effectiveTier,
+          },
+        });
+      }
+
+      const dailyScans = await buildDailySecurityScans(supabase);
+      return new Response(JSON.stringify(dailyScans), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Remaining": String(remaining),
+          "X-Response-Tier": effectiveTier,
+        },
+      });
+    }
+
     // ── Route to internal service ──
     const service = SERVICE_MAP[path];
     if (!service) {
