@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe, ShieldAlert, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe, ShieldAlert, CheckCircle2, AlertTriangle, Clock, XCircle } from "lucide-react";
 
 // ── API Endpoints ──────────────────────────────────────────────────
 const API_ENDPOINTS = [
