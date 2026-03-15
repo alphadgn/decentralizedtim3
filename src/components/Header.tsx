@@ -4,6 +4,7 @@ import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle, BarC
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 export function Header() {
   const { user, isAdmin, isSuperAdmin, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
