@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-request-signature, x-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
@@ -55,7 +50,6 @@ const SCHEMA_ROTATIONS: Record<number, Record<string, string>> = {
     timestamp: "ts",
     accuracy_band: "precision_level",
     signal_band: "signal_quality",
-    consensus_status: "network_state",
     node_count: "validator_count",
     drift_band: "offset_band",
     analytics_summary: "metrics_overview",
@@ -64,7 +58,6 @@ const SCHEMA_ROTATIONS: Record<number, Record<string, string>> = {
     timestamp: "epoch_ms",
     accuracy_band: "acc_tier",
     signal_band: "sig_tier",
-    consensus_status: "consensus_state",
     node_count: "n_nodes",
     drift_band: "drift_tier",
     analytics_summary: "analytics_brief",
@@ -500,6 +493,7 @@ async function executeOrderEngine(supabase: any, tier: string, body: any): Promi
 
 // ── Main handler ──
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
