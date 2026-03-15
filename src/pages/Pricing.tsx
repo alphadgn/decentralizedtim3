@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { useAuth } from "@/hooks/useAuth";
+import { extractPrivyEmail } from "@/lib/privy";
 import { Check, Zap, Shield, Globe, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,7 +87,7 @@ export default function Pricing() {
   const { login, user, userId } = useAuth();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
-  const email = (user as any)?.email?.address ?? (user as any)?.google?.email ?? (user as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? null;
+  const email = extractPrivyEmail(user);
 
   const handleCheckout = async (tier: string) => {
     if (!user) {

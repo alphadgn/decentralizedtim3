@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Enums } from "@/integrations/supabase/types";
+import { extractPrivyEmail } from "@/lib/privy";
 
 type AppRole = Enums<"app_role">;
 
@@ -29,7 +30,8 @@ export function useAuth() {
     attemptCount: 0,
   });
 
-  const email = privyUser?.email?.address ?? privyUser?.google?.email ?? (privyUser as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? null;
+  const emailRaw = extractPrivyEmail(privyUser);
+  const email = emailRaw ? emailRaw.toLowerCase() : null;
 
   const syncRole = useCallback(async () => {
     if (!authenticated || !email) {
@@ -81,7 +83,7 @@ export function useAuth() {
     }
 
     // Step 2: Approved — sync profile & role
-    const userId = await emailToUuid(email.toLowerCase());
+    const userId = await emailToUuid(email);
     const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
  
     // Always invoke sync to ensure role enforcement (especially super_admin)
