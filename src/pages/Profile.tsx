@@ -132,11 +132,13 @@ export default function Profile() {
       formData.append("userId", userId);
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       const response = await fetch(`${supabaseUrl}/functions/v1/profile-api`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          apikey: anonKey,
         },
         body: formData,
       });
