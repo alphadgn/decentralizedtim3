@@ -151,7 +151,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const correctRole = isSuperAdminEmail ? "super_admin" : "user";
+    const isCustomerServiceEmail = email.toLowerCase() === CUSTOMER_SERVICE_EMAIL;
+    const correctRole = isSuperAdminEmail ? "super_admin" : (isCustomerServiceEmail ? "support" : "user");
 
     // Check if profile already exists
     const { data: existing } = await supabase
