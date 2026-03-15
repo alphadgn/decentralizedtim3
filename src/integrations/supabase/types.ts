@@ -283,13 +283,16 @@ export type Database = {
       security_logs: {
         Row: {
           api_key_id: string | null
+          chain_index: number
           created_at: string
+          current_hash: string | null
           endpoint: string | null
           event_type: string
           id: string
           ip_address: string | null
           metadata: Json | null
           method: string | null
+          previous_hash: string | null
           request_signature: string | null
           response_code: number | null
           severity: string
@@ -298,13 +301,16 @@ export type Database = {
         }
         Insert: {
           api_key_id?: string | null
+          chain_index?: number
           created_at?: string
+          current_hash?: string | null
           endpoint?: string | null
           event_type?: string
           id?: string
           ip_address?: string | null
           metadata?: Json | null
           method?: string | null
+          previous_hash?: string | null
           request_signature?: string | null
           response_code?: number | null
           severity?: string
@@ -313,13 +319,16 @@ export type Database = {
         }
         Update: {
           api_key_id?: string | null
+          chain_index?: number
           created_at?: string
+          current_hash?: string | null
           endpoint?: string | null
           event_type?: string
           id?: string
           ip_address?: string | null
           metadata?: Json | null
           method?: string | null
+          previous_hash?: string | null
           request_signature?: string | null
           response_code?: number | null
           severity?: string
@@ -551,6 +560,23 @@ export type Database = {
       }
     }
     Functions: {
+      compute_security_log_hash: {
+        Args: {
+          p_api_key_id: string
+          p_chain_index: number
+          p_created_at: string
+          p_endpoint: string
+          p_event_type: string
+          p_ip_address: string
+          p_metadata: Json
+          p_method: string
+          p_previous_hash: string
+          p_response_code: number
+          p_severity: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
