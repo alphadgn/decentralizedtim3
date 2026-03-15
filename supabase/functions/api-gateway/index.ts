@@ -338,8 +338,22 @@ async function routeToService(
 }
 
 // ── Signal Engine (server-side only) ──
-async function executeSignalEngine(tier: string, path: string, body: any): Promise<Record<string, any>> {
+async function executeSignalEngine(supabase: any, tier: string, path: string, body: any): Promise<Record<string, any>> {
   const now = Date.now();
+
+  if (path === "/api/anchors" || path === "/api/anchors/status") {
+    const anchors = await getAnchorStatuses(supabase);
+    return {
+      timestamp: now,
+      accuracy_band: "high",
+      signal_band: "strong",
+      consensus_status: anchors.every((a) => a.status === "synced") ? "verified" : "syncing",
+      anchors,
+      node_count: 16,
+      drift_band: "minimal",
+      analytics_summary: { anchors_tracked: anchors.length },
+    };
+  }
 
   // Byzantine consensus — all logic server-side
   const signalCount = tier === "enterprise" ? 16 : 8;
@@ -358,6 +372,15 @@ async function executeSignalEngine(tier: string, path: string, body: any): Promi
 
   const eventData = `${consensusTime}-${signalCount}-${Date.now()}`;
   const consensusHash = await hashData(eventData);
+
+  const anchorRefresh = ensureRecentAnchors(supabase, consensusHash, consensusTime).catch((error) => {
+    console.error("anchor refresh failed:", error);
+  });
+
+  const edgeRuntime = (globalThis as any).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(anchorRefresh);
+  }
 
   // Build full internal response
   const fullResponse: Record<string, any> = {
