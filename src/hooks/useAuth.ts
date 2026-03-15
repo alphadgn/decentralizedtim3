@@ -30,7 +30,8 @@ export function useAuth() {
     attemptCount: 0,
   });
 
-  const email = privyUser?.email?.address ?? privyUser?.google?.email ?? (privyUser as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? null;
+  const emailRaw = extractPrivyEmail(privyUser);
+  const email = emailRaw ? emailRaw.toLowerCase() : null;
 
   const syncRole = useCallback(async () => {
     if (!authenticated || !email) {
