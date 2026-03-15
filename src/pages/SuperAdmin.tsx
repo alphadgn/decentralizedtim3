@@ -189,6 +189,7 @@ export default function SuperAdmin() {
   if (!isSuperAdmin) return <Navigate to="/" replace />;
 
   const admins = usersWithRoles.filter((u) => u.role === "admin" || u.role === "super_admin");
+  const staffUsers = usersWithRoles.filter((u) => u.role === "auditor" || u.role === "support");
   const regularUsers = usersWithRoles.filter((u) => u.role === "user");
 
   return (
