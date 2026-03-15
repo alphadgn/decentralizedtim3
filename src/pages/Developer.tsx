@@ -385,6 +385,46 @@ export default function Developer() {
           </p>
         </motion.div>
 
+        {isSuperAdmin && (
+          <div className="glass-panel p-5 space-y-4 border border-border/60">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-mono uppercase tracking-widest text-foreground">Daily Security Scans (Super Admin)</h2>
+            </div>
+
+            {scansLoading ? (
+              <p className="text-xs font-mono text-muted-foreground">Loading daily scan results...</p>
+            ) : (
+              <>
+                <div className="grid md:grid-cols-3 gap-3">
+                  {(securityScans?.scans ?? []).map((scan) => (
+                    <div key={scan.id} className="bg-secondary/50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        {scan.status === "pass" ? <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> : <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{scan.label}</span>
+                      </div>
+                      <p className="text-xs font-mono text-foreground">{scan.summary}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {securityScans?.tampered_entries?.length ? (
+                  <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+                    <p className="text-xs font-mono text-destructive mb-2">Tampered entries detected</p>
+                    <div className="space-y-1">
+                      {securityScans.tampered_entries.slice(0, 5).map((entry) => (
+                        <p key={entry.id} className="text-[10px] font-mono text-foreground">
+                          #{entry.chain_index} · {entry.id.slice(0, 8)}... · {entry.reasons.join(", ")}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        )}
+
         {/* Quick-links */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
