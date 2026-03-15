@@ -518,6 +518,106 @@ async function executeOrderEngine(supabase: any, tier: string, body: any): Promi
   };
 }
 
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function extractEmailFromPrivyPayload(payload: Record<string, any> | null): string | null {
+  if (!payload) return null;
+
+  if (typeof payload.email === "string") return payload.email;
+
+  const userEmail = payload.user?.email?.address;
+  if (typeof userEmail === "string") return userEmail;
+
+  if (Array.isArray(payload.linked_accounts)) {
+    const emailAccount = payload.linked_accounts.find((account: any) => {
+      const type = account?.type ?? account?.account_type;
+      return type === "email";
+    });
+
+    if (typeof emailAccount?.address === "string") return emailAccount.address;
+    if (typeof emailAccount?.email === "string") return emailAccount.email;
+  }
+
+  return null;
+}
+
+async function isSuperAdminRequest(req: Request, userId: string | null): Promise<boolean> {
+  const superAdminUuid = await getSuperAdminUuid();
+  if (userId === superAdminUuid) return true;
+
+  const token = extractBearerToken(req);
+  if (!token) return false;
+
+  const verifiedPayload = await verifyPrivyJWT(token);
+  let email = extractEmailFromPrivyPayload(verifiedPayload as Record<string, any> | null);
+
+  if (!email) {
+    const lightweight = verifyPrivyTokenLightweight(token);
+    if (!lightweight.valid) return false;
+    email = extractEmailFromPrivyPayload(decodeJwtPayload(token));
+  }
+
+  return email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+}
+
+async function buildDailySecurityScans(supabase: any): Promise<Record<string, any>> {
+  const chainReport = await verifySecurityLogChain(supabase);
+  const anchors = await getAnchorStatuses(supabase, 24 * 60 * 60 * 1000);
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const { data: criticalAlerts } = await supabase
+    .from("security_alerts")
+    .select("id")
+    .eq("severity", "critical")
+    .gte("created_at", startOfDay.toISOString());
+
+  const staleAnchors = anchors.filter((anchor) => anchor.status !== "synced");
+
+  return {
+    generated_at: new Date().toISOString(),
+    scans: [
+      {
+        id: "hash_chain_integrity",
+        label: "Hash-chain integrity",
+        status: chainReport.chain_unbroken ? "pass" : "fail",
+        summary: chainReport.chain_unbroken
+          ? `${chainReport.verified_entries}/${chainReport.total_entries} entries verified`
+          : `${chainReport.tampered_entries.length} tampered entries detected`,
+      },
+      {
+        id: "blockchain_testnet_anchors",
+        label: "Blockchain testnet anchoring",
+        status: staleAnchors.length === 0 ? "pass" : "warn",
+        summary: staleAnchors.length === 0
+          ? "Ethereum Sepolia, Solana Devnet, and Polygon Amoy are anchored"
+          : `${staleAnchors.length} chain(s) need re-sync`,
+      },
+      {
+        id: "daily_critical_alerts",
+        label: "Daily critical alert scan",
+        status: (criticalAlerts?.length ?? 0) === 0 ? "pass" : "warn",
+        summary: (criticalAlerts?.length ?? 0) === 0
+          ? "No critical alerts today"
+          : `${criticalAlerts?.length ?? 0} critical alert(s) recorded today`,
+      },
+    ],
+    tampered_entries: chainReport.tampered_entries,
+    anchors,
+  };
+}
+
 // ── Main handler ──
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
