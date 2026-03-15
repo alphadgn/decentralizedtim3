@@ -381,21 +381,21 @@ export default function SecurityDashboard() {
 
         {/* Security Logs */}
         <div className="glass-panel p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col gap-3 mb-4">
             <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               <Activity className="w-4 h-4" /> Security Logs ({filteredLogs.length})
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   placeholder="Search IP, endpoint, event..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-secondary border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                  className="bg-secondary border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-48"
                 />
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {(["all", "critical", "warning", "error", "info"] as SeverityFilter[]).map((s) => (
                   <button
                     key={s}
