@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Enums } from "@/integrations/supabase/types";
+import { extractPrivyEmail } from "@/lib/privy";
 
 type AppRole = Enums<"app_role">;
 

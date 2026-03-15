@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { useAuth } from "@/hooks/useAuth";
+import { extractPrivyEmail } from "@/lib/privy";
 import { Check, Zap, Shield, Globe, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
