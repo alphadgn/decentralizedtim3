@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailToUuid } from "../_shared/verify-privy-jwt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,29 +9,17 @@ const corsHeaders = {
 
 const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
 
-// Verify Privy JWT is present and not expired
-function verifyPrivyToken(req: Request): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return false;
+async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; privySub: string | null }> {
+  const token = extractBearerToken(req);
+  if (!token) return { authenticated: false, privySub: null };
 
-  const token = authHeader.replace("Bearer ", "");
+  // Try full JWKS verification first
+  const payload = await verifyPrivyJWT(token);
+  if (payload) return { authenticated: true, privySub: payload.sub };
 
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return false;
-
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-
-    // Check expiration
-    if (payload.exp && payload.exp < Date.now() / 1000) return false;
-
-    // Check issuer is Privy
-    if (!payload.iss?.includes("privy.io")) return false;
-
-    return true;
-  } catch {
-    return false;
-  }
+  // Fallback to lightweight check if JWKS unavailable
+  const lightweight = verifyPrivyTokenLightweight(token);
+  return { authenticated: lightweight.valid, privySub: lightweight.sub };
 }
 
 Deno.serve(async (req) => {
@@ -47,7 +36,7 @@ Deno.serve(async (req) => {
     );
 
     // Verify the caller has a valid Privy token
-    const hasValidToken = verifyPrivyToken(req);
+    const { authenticated } = await authenticateRequest(req);
 
     // Action: check if email is approved
     if (action === "check_approval") {
@@ -58,8 +47,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Require valid Privy token
-      if (!hasValidToken) {
+      if (!authenticated) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -132,10 +120,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Require valid Privy token
-    if (!hasValidToken) {
+    if (!authenticated) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // SECURITY: Verify userId matches the email-derived UUID to prevent spoofing
+    const expectedUserId = await emailToUuid(email.toLowerCase());
+    if (userId !== expectedUserId) {
+      return new Response(JSON.stringify({ error: "userId mismatch" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -144,7 +140,6 @@ Deno.serve(async (req) => {
     const isSuperAdminEmail = email.toLowerCase() === SUPER_ADMIN_EMAIL;
 
     if (!isSuperAdminEmail) {
-      // Double-check approval before syncing
       const { data: approvedCheck } = await supabase
         .from("approved_emails")
         .select("id")
@@ -159,7 +154,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Determine correct role
     const correctRole = isSuperAdminEmail ? "super_admin" : "user";
 
     // Check if profile already exists
@@ -170,13 +164,11 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!existing) {
-      // Create profile
       await supabase.from("profiles").insert({
         user_id: userId,
         display_name: isSuperAdminEmail ? "Admin" : "User",
       });
 
-      // Create role
       await supabase.from("user_roles").insert({
         user_id: userId,
         role: correctRole,

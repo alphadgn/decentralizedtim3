@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailToUuid } from "../_shared/verify-privy-jwt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,41 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Verify Privy JWT — lightweight check (issuer + expiry)
-function getPrivyUserId(req: Request): string | null {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
+async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; privySub: string | null }> {
+  const token = extractBearerToken(req);
+  if (!token) return { authenticated: false, privySub: null };
 
-  const token = authHeader.replace("Bearer ", "");
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
+  const payload = await verifyPrivyJWT(token);
+  if (payload) return { authenticated: true, privySub: payload.sub };
 
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-
-    if (payload.exp && payload.exp < Date.now() / 1000) return null;
-    if (!payload.iss?.includes("privy.io")) return null;
-
-    return payload.sub || null;
-  } catch {
-    return null;
-  }
-}
-
-async function emailToUuid(email: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(email);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  const hex = Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    "4" + hex.slice(13, 16),
-    "8" + hex.slice(17, 20),
-    hex.slice(20, 32),
-  ].join("-");
+  const lightweight = verifyPrivyTokenLightweight(token);
+  return { authenticated: lightweight.valid, privySub: lightweight.sub };
 }
 
 Deno.serve(async (req) => {
@@ -49,8 +24,8 @@ Deno.serve(async (req) => {
   }
 
   // Validate Privy token on ALL requests
-  const privyUserId = getPrivyUserId(req);
-  if (!privyUserId) {
+  const { authenticated, privySub } = await authenticateRequest(req);
+  if (!authenticated) {
     return new Response(JSON.stringify({ error: "Unauthorized — valid Privy token required" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,9 +53,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Validate file
-      if (!file.type.startsWith("image/")) {
-        return new Response(JSON.stringify({ error: "Only image files allowed" }), {
+      // Validate file type (whitelist approach)
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        return new Response(JSON.stringify({ error: "Only JPEG, PNG, GIF, or WebP images allowed" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -92,8 +68,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      const fileExt = file.name.split(".").pop() || "jpg";
-      const filePath = `${userId}/avatar.${fileExt}`;
+      // Sanitize file extension
+      const allowedExts = ["jpg", "jpeg", "png", "gif", "webp"];
+      const fileExt = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const safeExt = allowedExts.includes(fileExt) ? fileExt : "jpg";
+      const filePath = `${userId}/avatar.${safeExt}`;
       const arrayBuffer = await file.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
@@ -111,7 +90,6 @@ Deno.serve(async (req) => {
 
       const url = `${publicUrl}?t=${Date.now()}`;
 
-      // Update profile
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ avatar_url: url })
@@ -128,8 +106,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, userId, ...payload } = body;
 
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Missing userId" }), {
+    if (!userId || typeof userId !== "string" || userId.length > 100) {
+      return new Response(JSON.stringify({ error: "Invalid userId" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -158,7 +136,13 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Check if preferences exist
+        if (typeof value !== "boolean") {
+          return new Response(JSON.stringify({ error: "Value must be boolean" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         const { data: existing } = await supabase
           .from("user_preferences")
           .select("id")
@@ -197,6 +181,13 @@ Deno.serve(async (req) => {
 
       case "update_profile": {
         const { display_name, avatar_url } = payload;
+        // Input validation
+        if (display_name && (typeof display_name !== "string" || display_name.length > 100)) {
+          return new Response(JSON.stringify({ error: "Invalid display name" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const { error } = await supabase
           .from("profiles")
           .update({ display_name, avatar_url: avatar_url || null })
@@ -210,6 +201,20 @@ Deno.serve(async (req) => {
       case "generate_api_key": {
         const { name, expires_at } = payload;
 
+        // Validate name
+        const keyName = (typeof name === "string" && name.length <= 50) ? name : "Default";
+
+        // Validate expires_at
+        if (expires_at) {
+          const expDate = new Date(expires_at);
+          if (isNaN(expDate.getTime()) || expDate <= new Date()) {
+            return new Response(JSON.stringify({ error: "Expiration must be in the future" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+
         // Generate a cryptographically secure API key
         const rawBytes = new Uint8Array(32);
         crypto.getRandomValues(rawBytes);
@@ -220,8 +225,7 @@ Deno.serve(async (req) => {
         const prefix = fullKey.slice(0, 12);
 
         // Hash the key for storage using SHA-256
-        const encoder = new TextEncoder();
-        const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(fullKey));
+        const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fullKey));
         const keyHash = Array.from(new Uint8Array(hashBuffer))
           .map((b) => b.toString(16).padStart(2, "0"))
           .join("");
@@ -230,7 +234,7 @@ Deno.serve(async (req) => {
           .from("api_keys")
           .insert({
             user_id: userId,
-            name: name || "Default",
+            name: keyName,
             key_hash: keyHash,
             key_prefix: prefix,
             expires_at: expires_at || null,
@@ -240,7 +244,6 @@ Deno.serve(async (req) => {
 
         if (error) throw error;
 
-        // Return the full key ONCE — it cannot be retrieved again
         return new Response(JSON.stringify({
           key: fullKey,
           id: data.id,
@@ -256,6 +259,12 @@ Deno.serve(async (req) => {
 
       case "revoke_api_key": {
         const { keyId } = payload;
+        if (!keyId || typeof keyId !== "string") {
+          return new Response(JSON.stringify({ error: "Invalid keyId" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const { error } = await supabase
           .from("api_keys")
           .update({ revoked_at: new Date().toISOString() })
@@ -275,7 +284,7 @@ Deno.serve(async (req) => {
     }
   } catch (e) {
     console.error("profile-api error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Internal error" }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
