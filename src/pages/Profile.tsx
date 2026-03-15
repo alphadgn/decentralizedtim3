@@ -257,7 +257,7 @@ export default function Profile() {
             <div className="space-y-3">
               {[
                 { icon: Mail, label: "Email", value: email },
-                { icon: Shield, label: "Role", value: role || "user" },
+                { icon: Shield, label: "Role", value: role === "super_admin" ? "Super Administrator" : role === "admin" ? "Administrator" : role || "User" },
                 { icon: Clock, label: "Joined", value: joinDate },
                 { icon: User, label: "User ID", value: userId?.slice(0, 8) + "..." },
               ].map((item) => (
