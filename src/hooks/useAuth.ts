@@ -124,6 +124,9 @@ export function useAuth() {
 
   const isAdmin = state.role === "admin" || state.role === "super_admin";
   const isSuperAdmin = state.role === "super_admin";
+  const isAuditor = state.role === "auditor";
+  const isSupport = state.role === "support";
+  const isStaff = isAdmin || isAuditor || isSupport;
 
   return {
     user: authenticated && !state.unauthorized && !state.blocked ? privyUser : null,
@@ -135,6 +138,9 @@ export function useAuth() {
     signOut: logout,
     isAdmin,
     isSuperAdmin,
+    isAuditor,
+    isSupport,
+    isStaff,
     blocked: state.blocked,
     unauthorized: state.unauthorized,
     attemptCount: state.attemptCount,

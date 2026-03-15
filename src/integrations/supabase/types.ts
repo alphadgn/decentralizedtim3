@@ -588,7 +588,7 @@ export type Database = {
       run_hourly_chain_integrity_scan: { Args: never; Returns: Json }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "user"
+      app_role: "super_admin" | "admin" | "user" | "auditor" | "support"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -716,7 +716,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "user"],
+      app_role: ["super_admin", "admin", "user", "auditor", "support"],
     },
   },
 } as const

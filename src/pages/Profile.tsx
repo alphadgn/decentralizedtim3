@@ -264,7 +264,7 @@ export default function Profile() {
             <div className="space-y-3">
               {[
                 { icon: Mail, label: "Email", value: email },
-                { icon: Shield, label: "Role", value: effectiveRole === "super_admin" ? "Super Administrator" : effectiveRole === "admin" ? "Administrator" : effectiveRole || "User" },
+                { icon: Shield, label: "Role", value: effectiveRole === "super_admin" ? "Super Administrator" : effectiveRole === "admin" ? "Administrator" : effectiveRole === "auditor" ? "Auditor" : effectiveRole === "support" ? "Support" : effectiveRole || "User" },
                 { icon: Clock, label: "Joined", value: joinDate },
                 { icon: User, label: "User ID", value: userId?.slice(0, 8) + "..." },
               ].map((item) => (

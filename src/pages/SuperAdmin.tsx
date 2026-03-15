@@ -189,6 +189,7 @@ export default function SuperAdmin() {
   if (!isSuperAdmin) return <Navigate to="/" replace />;
 
   const admins = usersWithRoles.filter((u) => u.role === "admin" || u.role === "super_admin");
+  const staffUsers = usersWithRoles.filter((u) => u.role === "auditor" || u.role === "support");
   const regularUsers = usersWithRoles.filter((u) => u.role === "user");
 
   return (
@@ -342,6 +343,8 @@ export default function SuperAdmin() {
                           className="bg-secondary border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
                         >
                           <option value="admin">admin</option>
+                          <option value="auditor">auditor</option>
+                          <option value="support">support</option>
                           <option value="user">user</option>
                         </select>
                         <button
@@ -358,6 +361,58 @@ export default function SuperAdmin() {
             </tbody>
           </table>
         </div>
+
+        {/* Staff (Auditor/Support) */}
+        {staffUsers.length > 0 && (
+          <div className="glass-panel p-6 overflow-x-auto">
+            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+              Staff — Auditor & Support ({staffUsers.length})
+            </h2>
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border">
+                  <th className="text-left py-2 px-2">User</th>
+                  <th className="text-left py-2 px-2">Role</th>
+                  <th className="text-left py-2 px-2">Since</th>
+                  <th className="text-right py-2 px-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffUsers.map((u) => (
+                  <tr key={u.role_id} className="border-b border-border/50">
+                    <td className="py-2 px-2 text-foreground">{u.display_name}</td>
+                    <td className="py-2 px-2">
+                      <span className="text-accent">{u.role}</span>
+                    </td>
+                    <td className="py-2 px-2 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="py-2 px-2 text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <select
+                          defaultValue={u.role}
+                          onChange={(e) =>
+                            updateRole.mutate({ roleId: u.role_id, newRole: e.target.value as AppRole })
+                          }
+                          className="bg-secondary border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
+                        >
+                          <option value="auditor">auditor</option>
+                          <option value="support">support</option>
+                          <option value="admin">admin</option>
+                          <option value="user">user</option>
+                        </select>
+                        <button
+                          onClick={() => deleteRole.mutate(u.role_id)}
+                          className="text-destructive hover:opacity-80"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* All Users */}
         <div className="glass-panel p-6 overflow-x-auto">
@@ -386,6 +441,8 @@ export default function SuperAdmin() {
                       className="bg-secondary border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
                     >
                       <option value="user">user</option>
+                      <option value="auditor">auditor</option>
+                      <option value="support">support</option>
                       <option value="admin">admin</option>
                       <option value="super_admin">super_admin</option>
                     </select>
