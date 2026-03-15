@@ -167,7 +167,8 @@ export default function Profile() {
 
   const email = (user as any)?.email?.address ?? (user as any)?.google?.email ?? (user as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? "—";
   const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
-  const isSuperAdminAccount = email !== "—" && email.toLowerCase() === SUPER_ADMIN_EMAIL;
+  const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
+  const isSuperAdminAccount = (email !== "—" && email?.toLowerCase() === SUPER_ADMIN_EMAIL) || (userId === SUPER_ADMIN_USER_ID);
   const effectiveRole = isSuperAdminAccount ? "super_admin" : (role === "super_admin" ? "super_admin" : role);
   const joinDate = profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—";
   const initials = (displayName || email)

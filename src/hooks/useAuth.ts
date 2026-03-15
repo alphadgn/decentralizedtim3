@@ -82,7 +82,8 @@ export function useAuth() {
 
     // Step 2: Approved — sync profile & role
     const userId = await emailToUuid(email.toLowerCase());
-
+    const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
+ 
     // Always invoke sync to ensure role enforcement (especially super_admin)
     let accessToken2: string | null = null;
     try {
@@ -90,18 +91,18 @@ export function useAuth() {
     } catch (e) {
       console.error("Failed to get access token for sync:", e);
     }
-
+ 
     const { data: syncData, error: syncError } = await supabase.functions.invoke("sync-privy-user", {
       body: { email, userId },
       headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
     });
-
+ 
     // Use role returned directly from edge function (avoids RLS blocking)
     let syncedRole = syncData?.role ?? null;
-
-    // CRITICAL: If super admin email, ALWAYS force super_admin role regardless
-    // of what the edge function returned (covers sync failures, stale data, etc.)
-    if (isSuperAdminEmail) {
+ 
+    // CRITICAL: If this is the super admin account, ALWAYS force super_admin
+    // regardless of what the edge function returned (covers sync failures, stale data, etc.)
+    if (isSuperAdminEmail || userId === SUPER_ADMIN_USER_ID) {
       syncedRole = "super_admin";
     }
 
