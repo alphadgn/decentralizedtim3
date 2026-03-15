@@ -3,8 +3,16 @@ export function extractPrivyEmail(user: unknown): string | null {
   if (!u) return null;
 
   const directCandidates = [
+    // Some Privy user objects expose email as a string
+    u?.email,
+    u?.emailAddress,
+    u?.email_address,
+
+    // Common structured shapes
     u?.email?.address,
     u?.email?.email,
+
+    // Provider-specific
     u?.google?.email,
     u?.google?.emailAddress,
     u?.apple?.email,
