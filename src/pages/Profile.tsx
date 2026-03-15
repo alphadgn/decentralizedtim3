@@ -165,7 +165,7 @@ export default function Profile() {
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
 
-  const email = (user as any)?.email?.address ?? "—";
+  const email = (user as any)?.email?.address ?? (user as any)?.google?.email ?? (user as any)?.linkedAccounts?.find((a: any) => a.type === "google_oauth")?.email ?? "—";
   const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
   const isSuperAdminAccount = email !== "—" && email.toLowerCase() === SUPER_ADMIN_EMAIL;
   const effectiveRole = isSuperAdminAccount ? "super_admin" : (role === "super_admin" ? "super_admin" : role);
