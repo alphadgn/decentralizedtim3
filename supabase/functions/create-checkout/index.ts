@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     }
 
     // Create Checkout Session
-    const origin = returnUrl || req.headers.get("origin") || "https://decentralizedtim3.lovable.app";
+    const origin = returnUrl || req.headers.get("origin") || "https://defitime.io";
     const sessionRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
       headers: {

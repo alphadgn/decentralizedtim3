@@ -4,6 +4,8 @@
  */
 
 const ALLOWED_ORIGINS = [
+  "https://defitime.io",
+  "http://defitime.io",
   "https://decentralizedtim3.lovable.app",
   "https://id-preview--604fe7d4-ffda-4369-8729-382130c9bc18.lovable.app",
   "https://604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
