@@ -99,10 +99,9 @@ export function useAuth() {
     // Use role returned directly from edge function (avoids RLS blocking)
     let syncedRole = syncData?.role ?? null;
 
-    // CRITICAL: If edge function fails or returns wrong role for super admin,
-    // enforce super_admin role on the frontend as well
-    if (isSuperAdminEmail && syncedRole !== "super_admin") {
-      console.warn("Super admin role mismatch detected, enforcing super_admin");
+    // CRITICAL: If super admin email, ALWAYS force super_admin role regardless
+    // of what the edge function returned (covers sync failures, stale data, etc.)
+    if (isSuperAdminEmail) {
       syncedRole = "super_admin";
     }
 
