@@ -72,7 +72,7 @@ export default function SecurityDashboard() {
       if (error) throw error;
       return data || [];
     },
-    enabled: isSuperAdmin,
+    enabled: canView,
     refetchInterval: 30000,
   });
 
