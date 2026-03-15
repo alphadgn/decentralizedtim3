@@ -81,7 +81,7 @@ export function useAuth() {
     }
 
     // Step 2: Approved — sync profile & role
-    const userId = await emailToUuid(email);
+    const userId = await emailToUuid(email.toLowerCase());
 
     // Always invoke sync to ensure role enforcement (especially super_admin)
     let accessToken2: string | null = null;
