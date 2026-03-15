@@ -2,7 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { BackToDashboard } from "@/components/BackToDashboard";
-import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { Code, Terminal, Webhook, Copy, Check, Key, BookOpen, Zap, Shield, Globe, ShieldAlert, CheckCircle2, AlertTriangle } from "lucide-react";
 
 // ── API Endpoints ──────────────────────────────────────────────────
 const API_ENDPOINTS = [
