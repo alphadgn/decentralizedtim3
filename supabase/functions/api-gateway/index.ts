@@ -81,9 +81,9 @@ function rotateFieldNames(data: Record<string, any>): Record<string, any> {
 
 // ── Tier-based field filtering ──
 const TIER_FIELDS: Record<string, string[]> = {
-  free: ["timestamp", "accuracy_band", "signal_band", "consensus_status"],
-  pro: ["timestamp", "accuracy_band", "signal_band", "consensus_status", "node_count", "drift_band", "analytics_summary"],
-  enterprise: ["timestamp", "accuracy", "signal_strength", "consensus_hash", "node_count", "drift_ms", "analytics", "sequence", "verification_hash", "sources"],
+  free: ["timestamp", "accuracy_band", "signal_band", "consensus_status", "anchors"],
+  pro: ["timestamp", "accuracy_band", "signal_band", "consensus_status", "node_count", "drift_band", "analytics_summary", "anchors"],
+  enterprise: ["timestamp", "accuracy", "signal_strength", "consensus_hash", "node_count", "drift_ms", "analytics", "sequence", "verification_hash", "sources", "anchors"],
 };
 
 // ── Honeypot paths ──
