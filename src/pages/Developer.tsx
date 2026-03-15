@@ -341,7 +341,7 @@ type TabId = "api" | "sdk" | "webhooks" | "auth";
 export default function Developer() {
   const [activeTab, setActiveTab] = useState<TabId>("api");
   const [sdkLang, setSdkLang] = useState("JavaScript");
-  const { isSuperAdmin, getAccessToken } = useAuth();
+  const { isSuperAdmin, getAccessToken, userId } = useAuth();
 
   const { data: securityScans, isLoading: scansLoading } = useQuery({
     queryKey: ["developer-daily-security-scans"],
@@ -350,8 +350,11 @@ export default function Developer() {
     queryFn: async () => {
       const token = await getAccessToken();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (userId) headers["x-user-id"] = userId;
       const resp = await fetch(`https://${projectId}.supabase.co/functions/v1/api-gateway/api/security/daily-scans`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers,
       });
 
       if (!resp.ok) {

@@ -563,16 +563,28 @@ async function isSuperAdminRequest(req: Request, userId: string | null): Promise
   const token = extractBearerToken(req);
   if (!token) return false;
 
+  // Try full JWKS verification first
   const verifiedPayload = await verifyPrivyJWT(token);
   let email = extractEmailFromPrivyPayload(verifiedPayload as Record<string, any> | null);
 
-  if (!email) {
-    const lightweight = verifyPrivyTokenLightweight(token);
-    if (!lightweight.valid) return false;
-    email = extractEmailFromPrivyPayload(decodeJwtPayload(token));
-  }
+  // If email found directly in token payload, compare
+  if (email) return email.toLowerCase() === SUPER_ADMIN_EMAIL;
 
-  return email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+  // Privy access tokens only contain `sub`, not email.
+  // Check decoded payload for linked_accounts (identity tokens include them)
+  const decoded = decodeJwtPayload(token);
+  email = extractEmailFromPrivyPayload(decoded);
+  if (email) return email.toLowerCase() === SUPER_ADMIN_EMAIL;
+
+  // Fallback: check X-User-Id header (set by authenticated frontend)
+  // The Privy JWT must still be valid for this to pass
+  const lightweight = verifyPrivyTokenLightweight(token);
+  if (!lightweight.valid) return false;
+
+  const headerUserId = req.headers.get("x-user-id");
+  if (headerUserId === superAdminUuid) return true;
+
+  return false;
 }
 
 async function buildDailySecurityScans(supabase: any): Promise<Record<string, any>> {
