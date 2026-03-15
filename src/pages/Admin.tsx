@@ -29,12 +29,12 @@ export default function Admin() {
       if (error) throw error;
       return data;
     },
-    enabled: isAdmin,
+    enabled: canView,
   });
 
   if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/" replace />;
+  if (!canView) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background grid-bg">

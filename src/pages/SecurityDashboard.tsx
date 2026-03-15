@@ -273,13 +273,15 @@ export default function SecurityDashboard() {
                       <span>{new Date(alert.created_at).toLocaleString()}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => acknowledgeAlert.mutate(alert.id)}
-                    className="shrink-0 text-muted-foreground hover:text-accent transition-colors"
-                    title="Acknowledge"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => acknowledgeAlert.mutate(alert.id)}
+                      className="shrink-0 text-muted-foreground hover:text-accent transition-colors"
+                      title="Acknowledge"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

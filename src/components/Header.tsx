@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 export function Header() {
-  const { user, isAdmin, isSuperAdmin, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isAuditor, isSupport, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
