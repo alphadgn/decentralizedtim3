@@ -341,6 +341,30 @@ type TabId = "api" | "sdk" | "webhooks" | "auth";
 export default function Developer() {
   const [activeTab, setActiveTab] = useState<TabId>("api");
   const [sdkLang, setSdkLang] = useState("JavaScript");
+  const { isSuperAdmin, getAccessToken } = useAuth();
+
+  const { data: securityScans, isLoading: scansLoading } = useQuery({
+    queryKey: ["developer-daily-security-scans"],
+    enabled: isSuperAdmin,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const token = await getAccessToken();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const resp = await fetch(`https://${projectId}.supabase.co/functions/v1/api-gateway/api/security/daily-scans`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!resp.ok) {
+        throw new Error("Unable to load daily security scans");
+      }
+
+      return resp.json() as Promise<{
+        generated_at: string;
+        scans: { id: string; label: string; status: "pass" | "warn" | "fail"; summary: string }[];
+        tampered_entries: { id: string; chain_index: number; reasons: string[] }[];
+      }>;
+    },
+  });
 
   const tabs: { id: TabId; label: string; icon: typeof Terminal }[] = [
     { id: "api", label: "REST API", icon: Terminal },
