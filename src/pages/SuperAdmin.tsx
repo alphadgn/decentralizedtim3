@@ -444,7 +444,6 @@ export default function SuperAdmin() {
                       <option value="auditor">auditor</option>
                       <option value="support">support</option>
                       <option value="admin">admin</option>
-                      <option value="super_admin">super_admin</option>
                     </select>
                   </td>
                 </tr>

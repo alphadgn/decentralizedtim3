@@ -3,6 +3,7 @@ import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailT
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
+const CUSTOMER_SERVICE_EMAIL = "decentralizedtim3@gmail.com";
 
 async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; privySub: string | null }> {
   const token = extractBearerToken(req);
@@ -150,7 +151,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const correctRole = isSuperAdminEmail ? "super_admin" : "user";
+    const isCustomerServiceEmail = email.toLowerCase() === CUSTOMER_SERVICE_EMAIL;
+    const correctRole = isSuperAdminEmail ? "super_admin" : (isCustomerServiceEmail ? "support" : "user");
 
     // Check if profile already exists
     const { data: existing } = await supabase
