@@ -325,7 +325,7 @@ async function routeToService(
   // Each service only knows its part of the protocol
   switch (service) {
     case "signal-engine":
-      return await executeSignalEngine(tier, path, body);
+      return await executeSignalEngine(supabase, tier, path, body);
     case "analytics-engine":
       return await executeAnalyticsEngine(tier);
     case "risk-engine":
