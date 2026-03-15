@@ -701,7 +701,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Rate limiting (super admin exempt) ──
-    const superAdminUuid = await getSuperAdminUuid();
+    const superAdminUuid = getSuperAdminUuid();
     let isSuperAdmin = userId === superAdminUuid;
     if (!isSuperAdmin) {
       isSuperAdmin = await isSuperAdminRequest(req, userId);
