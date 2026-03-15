@@ -21,8 +21,22 @@ export function Header() {
     navigate("/");
   };
 
-  const handleSignIn = () => {
-    login();
+  const handleSignIn = async () => {
+    const isPreviewDomain = window.location.hostname.includes("id-preview--") || window.location.hostname.includes("lovableproject.com");
+
+    if (isPreviewDomain) {
+      toast.warning("Preview sign-in is blocked by auth origin policy. Opening the published app for login.");
+      window.open("https://decentralizedtim3.lovable.app", "_blank", "noopener,noreferrer");
+      setMenuOpen(false);
+      return;
+    }
+
+    try {
+      await login();
+    } catch {
+      toast.error("Sign-in failed. Ensure the active domain is allowlisted in your Privy app settings.");
+    }
+
     setMenuOpen(false);
   };
 
