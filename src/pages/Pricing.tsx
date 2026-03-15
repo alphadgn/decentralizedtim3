@@ -101,8 +101,7 @@ export default function Pricing() {
     }
 
     if (tier === "enterprise") {
-      // Enterprise = contact sales
-      window.open("mailto:sales@dgtn.io?subject=Enterprise%20Plan%20Inquiry", "_blank");
+      window.open("mailto:decentralizedtim3@gmail.com?subject=Enterprise%20Plan%20Inquiry", "_blank");
       return;
     }
 
@@ -256,8 +255,13 @@ export default function Pricing() {
           </div>
         </motion.div>
 
-        <footer className="text-center py-6 text-xs font-mono text-muted-foreground">
-          DGTN Protocol — Decentralized Time Infrastructure
+        <footer className="text-center py-6 space-y-2">
+          <p className="text-xs font-mono text-muted-foreground">
+            DGTN Protocol — Decentralized Time Infrastructure
+          </p>
+          <p className="text-[10px] font-mono text-muted-foreground">
+            Contact: <a href="mailto:decentralizedtim3@gmail.com" className="text-primary hover:underline">decentralizedtim3@gmail.com</a>
+          </p>
         </footer>
       </main>
     </div>

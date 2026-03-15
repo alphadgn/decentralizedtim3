@@ -30,7 +30,9 @@ import {
 type SeverityFilter = "all" | "critical" | "warning" | "error" | "info";
 
 export default function SecurityDashboard() {
-  const { user, isSuperAdmin, loading } = useAuth();
+  const { user, isSuperAdmin, isAuditor, loading } = useAuth();
+  const canView = isSuperAdmin || isAuditor;
+  const readOnly = isAuditor && !isSuperAdmin;
   const queryClient = useQueryClient();
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +55,7 @@ export default function SecurityDashboard() {
       if (error) throw error;
       return data || [];
     },
-    enabled: isSuperAdmin,
+    enabled: canView,
     refetchInterval: 30000,
   });
 
@@ -70,7 +72,7 @@ export default function SecurityDashboard() {
       if (error) throw error;
       return data || [];
     },
-    enabled: isSuperAdmin,
+    enabled: canView,
     refetchInterval: 30000,
   });
 
@@ -87,7 +89,7 @@ export default function SecurityDashboard() {
       if (error) throw error;
       return data || [];
     },
-    enabled: isSuperAdmin,
+    enabled: canView,
     refetchInterval: 30000,
   });
 
@@ -104,12 +106,12 @@ export default function SecurityDashboard() {
       if (error) throw error;
       return data || [];
     },
-    enabled: isSuperAdmin,
+    enabled: canView,
   });
 
   // Realtime subscription for security_alerts
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canView) return;
 
     const channel = supabase
       .channel("security-alerts-realtime")
@@ -136,7 +138,7 @@ export default function SecurityDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isSuperAdmin, queryClient]);
+  }, [canView, queryClient]);
 
   const acknowledgeAlert = useMutation({
     mutationFn: async (alertId: string) => {
@@ -170,7 +172,7 @@ export default function SecurityDashboard() {
 
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
-  if (!isSuperAdmin) return <Navigate to="/" replace />;
+  if (!canView) return <Navigate to="/" replace />;
 
   const severityColor = (s: string) => {
     switch (s) {
@@ -271,13 +273,15 @@ export default function SecurityDashboard() {
                       <span>{new Date(alert.created_at).toLocaleString()}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => acknowledgeAlert.mutate(alert.id)}
-                    className="shrink-0 text-muted-foreground hover:text-accent transition-colors"
-                    title="Acknowledge"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => acknowledgeAlert.mutate(alert.id)}
+                      className="shrink-0 text-muted-foreground hover:text-accent transition-colors"
+                      title="Acknowledge"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

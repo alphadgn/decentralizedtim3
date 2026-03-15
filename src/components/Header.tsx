@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 export function Header() {
-  const { user, isAdmin, isSuperAdmin, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isAuditor, isSupport, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -54,20 +54,20 @@ export function Header() {
           </Link>
         </>
       )}
-      {isAdmin && (
+      {(isAdmin || isSupport) && (
         <Link to="/admin" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
           <Shield className="w-3 h-3" /> Admin
         </Link>
       )}
       {isSuperAdmin && (
-        <>
-          <Link to="/super-admin" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
-            <ShieldAlert className="w-3 h-3" /> Super
-          </Link>
-          <Link to="/security" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" /> Security
-          </Link>
-        </>
+        <Link to="/super-admin" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+          <ShieldAlert className="w-3 h-3" /> Super
+        </Link>
+      )}
+      {(isSuperAdmin || isAuditor) && (
+        <Link to="/security" onClick={closeMenu} className="hover:text-foreground transition-colors flex items-center gap-1">
+          <AlertTriangle className="w-3 h-3" /> Security
+        </Link>
       )}
       {user ? (
         <button onClick={handleSignOut} className="hover:text-foreground transition-colors flex items-center gap-1">

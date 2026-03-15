@@ -9,7 +9,8 @@ import { Shield, Users, Activity, Server } from "lucide-react";
 import { NETWORK_NODES } from "@/hooks/useNetworkTime";
 
 export default function Admin() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, isSupport, loading } = useAuth();
+  const canView = isAdmin || isSupport;
 
   const { data: allNodes = [] } = useQuery({
     queryKey: ["admin-nodes"],
@@ -18,7 +19,7 @@ export default function Admin() {
       if (error) throw error;
       return data;
     },
-    enabled: isAdmin,
+    enabled: canView,
   });
 
   const { data: profiles = [] } = useQuery({
@@ -28,12 +29,12 @@ export default function Admin() {
       if (error) throw error;
       return data;
     },
-    enabled: isAdmin,
+    enabled: canView,
   });
 
   if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/" replace />;
+  if (!canView) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background grid-bg">

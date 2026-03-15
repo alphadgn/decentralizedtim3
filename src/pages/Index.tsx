@@ -30,8 +30,13 @@ const Index = () => {
         </div>
 
         {/* Footer */}
-        <footer className="text-center py-8 text-xs font-mono text-muted-foreground">
-          DGTN Protocol v0.1.0 — Decentralized Time Infrastructure for the Internet
+        <footer className="text-center py-8 space-y-2">
+          <p className="text-xs font-mono text-muted-foreground">
+            DGTN Protocol v0.1.0 — Decentralized Time Infrastructure for the Internet
+          </p>
+          <p className="text-[10px] font-mono text-muted-foreground">
+            Support: <a href="mailto:decentralizedtim3@gmail.com" className="text-primary hover:underline">decentralizedtim3@gmail.com</a>
+          </p>
         </footer>
       </main>
     </div>
