@@ -30,7 +30,9 @@ import {
 type SeverityFilter = "all" | "critical" | "warning" | "error" | "info";
 
 export default function SecurityDashboard() {
-  const { user, isSuperAdmin, loading } = useAuth();
+  const { user, isSuperAdmin, isAuditor, loading } = useAuth();
+  const canView = isSuperAdmin || isAuditor;
+  const readOnly = isAuditor && !isSuperAdmin;
   const queryClient = useQueryClient();
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
