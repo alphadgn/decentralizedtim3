@@ -9,7 +9,8 @@ import { Shield, Users, Activity, Server } from "lucide-react";
 import { NETWORK_NODES } from "@/hooks/useNetworkTime";
 
 export default function Admin() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, isSupport, loading } = useAuth();
+  const canView = isAdmin || isSupport;
 
   const { data: allNodes = [] } = useQuery({
     queryKey: ["admin-nodes"],
