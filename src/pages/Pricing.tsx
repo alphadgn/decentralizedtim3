@@ -101,8 +101,7 @@ export default function Pricing() {
     }
 
     if (tier === "enterprise") {
-      // Enterprise = contact sales
-      window.open("mailto:sales@dgtn.io?subject=Enterprise%20Plan%20Inquiry", "_blank");
+      window.open("mailto:decentralizedtim3@gmail.com?subject=Enterprise%20Plan%20Inquiry", "_blank");
       return;
     }
 
