@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { ensureRecentAnchors, getAnchorStatuses } from "../_shared/blockchain-anchors.ts";
+import { verifySecurityLogChain } from "../_shared/hash-chain.ts";
+import { extractBearerToken, verifyPrivyJWT, verifyPrivyTokenLightweight } from "../_shared/verify-privy-jwt.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
