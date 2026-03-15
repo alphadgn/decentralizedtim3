@@ -204,7 +204,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
+    // Fetch and return the user's current role
+    const { data: finalRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    return new Response(JSON.stringify({ ok: true, role: finalRole?.role ?? "user" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

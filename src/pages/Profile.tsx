@@ -257,7 +257,7 @@ export default function Profile() {
             <div className="space-y-3">
               {[
                 { icon: Mail, label: "Email", value: email },
-                { icon: Shield, label: "Role", value: role || "user" },
+                { icon: Shield, label: "Role", value: role === "super_admin" ? "Super Administrator" : role === "admin" ? "Administrator" : role || "User" },
                 { icon: Clock, label: "Joined", value: joinDate },
                 { icon: User, label: "User ID", value: userId?.slice(0, 8) + "..." },
               ].map((item) => (
@@ -295,18 +295,16 @@ export default function Profile() {
             {prefItems.map((pref) => {
               const isOn = prefs[pref.key as keyof typeof prefs];
               return (
-                <div key={pref.key} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <pref.icon className="w-3.5 h-3.5 text-muted-foreground" />
-                    <div>
-                      <div className="text-xs font-mono font-semibold text-foreground">{pref.label}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground">{pref.desc}</div>
-                    </div>
+                <div key={pref.key} className="flex items-start gap-3">
+                  <pref.icon className="w-3.5 h-3.5 text-muted-foreground mt-1 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-mono font-semibold text-foreground">{pref.label}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground">{pref.desc}</div>
                   </div>
                   <button
                     onClick={() => togglePref.mutate({ key: pref.key, value: !isOn })}
                     disabled={togglePref.isPending}
-                    className={`w-10 h-5 rounded-full transition-colors relative ${isOn ? "bg-primary" : "bg-secondary"}`}
+                    className={`w-10 h-5 rounded-full transition-colors relative shrink-0 mt-0.5 ${isOn ? "bg-primary" : "bg-secondary"}`}
                   >
                     <div className={`w-4 h-4 rounded-full bg-foreground absolute top-0.5 transition-transform ${isOn ? "translate-x-5" : "translate-x-0.5"}`} />
                   </button>
