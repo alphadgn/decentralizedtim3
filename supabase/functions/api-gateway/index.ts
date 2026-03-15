@@ -571,48 +571,20 @@ async function isSuperAdminRequest(req: Request, userId: string | null): Promise
   if (email) return email.toLowerCase() === SUPER_ADMIN_EMAIL;
 
   // Privy access tokens only contain `sub`, not email.
-  // Derive the user's deterministic UUID from the known super-admin email
-  // and check if the token belongs to that account by verifying the sub,
-  // then querying user_roles for the super_admin role.
-  const lightweight = verifyPrivyTokenLightweight(token);
-  if (!lightweight.valid || !lightweight.sub) return false;
-
-  // Decode the JWT to also check linked_accounts (identity tokens include them)
+  // Check decoded payload for linked_accounts (identity tokens include them)
   const decoded = decodeJwtPayload(token);
   email = extractEmailFromPrivyPayload(decoded);
   if (email) return email.toLowerCase() === SUPER_ADMIN_EMAIL;
 
-  // Last resort: look up user_roles by the email-derived UUID for the super admin
-  // The sub is a Privy DID, so we need to find the profile that matches
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  // Fallback: check X-User-Id header (set by authenticated frontend)
+  // The Privy JWT must still be valid for this to pass
+  const lightweight = verifyPrivyTokenLightweight(token);
+  if (!lightweight.valid) return false;
 
-  // Check if ANY user with the super_admin UUID has the super_admin role
-  const { data: roleData } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("user_id", superAdminUuid)
-    .eq("role", "super_admin")
-    .maybeSingle();
+  const headerUserId = req.headers.get("x-user-id");
+  if (headerUserId === superAdminUuid) return true;
 
-  if (!roleData) return false;
-
-  // Verify the Privy sub matches the super admin's Privy DID by computing the UUID
-  // from the super admin email and checking it matches
-  const derivedUuid = await emailToUuid(SUPER_ADMIN_EMAIL);
-  
-  // The sync-privy-user function stores profiles with the email-derived UUID.
-  // If the token's sub produced a valid lightweight check, we need to confirm
-  // this token actually belongs to the super admin by checking their profile exists.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("user_id")
-    .eq("user_id", derivedUuid)
-    .maybeSingle();
-
-  return !!profile;
+  return false;
 }
 
 async function buildDailySecurityScans(supabase: any): Promise<Record<string, any>> {
