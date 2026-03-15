@@ -106,12 +106,12 @@ export default function SecurityDashboard() {
       if (error) throw error;
       return data || [];
     },
-    enabled: isSuperAdmin,
+    enabled: canView,
   });
 
   // Realtime subscription for security_alerts
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canView) return;
 
     const channel = supabase
       .channel("security-alerts-realtime")
