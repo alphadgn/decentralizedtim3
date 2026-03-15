@@ -463,7 +463,10 @@ async function executeOrderEngine(supabase: any, tier: string, body: any): Promi
 
   const eventData = `${canonicalTimestamp}-${sequenceNumber}-${exchangeId}-${JSON.stringify(orderData)}`;
   const eventHash = await hashData(eventData);
-  const signature = await hashData(`sig-${eventHash}-${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(0, 16)}`);
+  // SECURITY FIX: Do NOT use service role key material in signatures
+  const nonce = crypto.getRandomValues(new Uint8Array(16));
+  const nonceHex = Array.from(nonce).map(b => b.toString(16).padStart(2, "0")).join("");
+  const signature = await hashData(`sig-${eventHash}-${nonceHex}-${canonicalTimestamp}`);
   const verificationHash = await hashData(`${eventHash}-${signature}`);
 
   await supabase.from("trade_events").insert({
