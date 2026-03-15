@@ -539,7 +539,7 @@ function extractEmailFromPrivyPayload(payload: Record<string, any> | null): stri
 }
 
 async function isSuperAdminRequest(req: Request, userId: string | null): Promise<boolean> {
-  const superAdminUuid = await getSuperAdminUuid();
+  const superAdminUuid = getSuperAdminUuid();
   if (userId === superAdminUuid) return true;
 
   const token = extractBearerToken(req);
