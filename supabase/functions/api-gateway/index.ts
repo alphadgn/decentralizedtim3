@@ -15,29 +15,11 @@ const RATE_LIMITS: Record<string, number> = {
 // Super admin email — exempt from all rate limiting
 const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
 
-// Compute deterministic UUID from email (same as frontend emailToUuid)
-async function emailToUuid(email: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(email));
-  const hex = Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    "4" + hex.slice(13, 16),
-    "8" + hex.slice(17, 20),
-    hex.slice(20, 32),
-  ].join("-");
-}
+// Hardcoded super admin UUID (Privy-assigned, immutable)
+const SUPER_ADMIN_UUID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
 
-// Cached super admin UUID (computed once)
-let _superAdminUuid: string | null = null;
-async function getSuperAdminUuid(): Promise<string> {
-  if (!_superAdminUuid) {
-    _superAdminUuid = await emailToUuid(SUPER_ADMIN_EMAIL);
-  }
-  return _superAdminUuid;
+function getSuperAdminUuid(): string {
+  return SUPER_ADMIN_UUID;
 }
 
 // ── Schema rotation ──
@@ -557,7 +539,7 @@ function extractEmailFromPrivyPayload(payload: Record<string, any> | null): stri
 }
 
 async function isSuperAdminRequest(req: Request, userId: string | null): Promise<boolean> {
-  const superAdminUuid = await getSuperAdminUuid();
+  const superAdminUuid = getSuperAdminUuid();
   if (userId === superAdminUuid) return true;
 
   const token = extractBearerToken(req);
@@ -719,7 +701,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Rate limiting (super admin exempt) ──
-    const superAdminUuid = await getSuperAdminUuid();
+    const superAdminUuid = getSuperAdminUuid();
     let isSuperAdmin = userId === superAdminUuid;
     if (!isSuperAdmin) {
       isSuperAdmin = await isSuperAdminRequest(req, userId);

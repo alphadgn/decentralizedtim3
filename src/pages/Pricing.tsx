@@ -101,7 +101,7 @@ export default function Pricing() {
     }
 
     if (tier === "enterprise") {
-      window.open("mailto:decentralizedtim3@gmail.com?subject=Enterprise%20Plan%20Inquiry", "_blank");
+      window.location.href = "mailto:decentralizedtim3@gmail.com?subject=Enterprise%20Plan%20Inquiry";
       return;
     }
 

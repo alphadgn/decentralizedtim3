@@ -198,10 +198,10 @@ export default function SecurityDashboard() {
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-6">
         <BackToDashboard />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-destructive" />
-              <h1 className="text-2xl font-mono font-bold text-foreground">Security Monitor</h1>
+              <h1 className="text-xl sm:text-2xl font-mono font-bold text-foreground">Security Monitor</h1>
               <span className="ml-2 flex items-center gap-1 text-[10px] font-mono text-accent">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
                 LIVE
@@ -209,7 +209,7 @@ export default function SecurityDashboard() {
             </div>
             <button
               onClick={() => { refetchLogs(); refetchIps(); refetchAlerts(); }}
-              className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80"
+              className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80 self-start sm:self-auto"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </button>
@@ -381,21 +381,21 @@ export default function SecurityDashboard() {
 
         {/* Security Logs */}
         <div className="glass-panel p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col gap-3 mb-4">
             <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-2">
               <Activity className="w-4 h-4" /> Security Logs ({filteredLogs.length})
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   placeholder="Search IP, endpoint, event..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-secondary border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                  className="bg-secondary border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-48"
                 />
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {(["all", "critical", "warning", "error", "info"] as SeverityFilter[]).map((s) => (
                   <button
                     key={s}
