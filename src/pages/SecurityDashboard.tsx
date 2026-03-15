@@ -172,7 +172,7 @@ export default function SecurityDashboard() {
 
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
-  if (!isSuperAdmin) return <Navigate to="/" replace />;
+  if (!canView) return <Navigate to="/" replace />;
 
   const severityColor = (s: string) => {
     switch (s) {
