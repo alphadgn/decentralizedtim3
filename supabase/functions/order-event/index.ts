@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sha256 } from "../_shared/verify-privy-jwt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,16 +21,10 @@ function collectTimeSignals(): number[] {
   return Array.from({ length: 16 }, () => now + (Math.random() * 3 - 1.5));
 }
 
-async function hashData(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(data));
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
 async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: boolean; tier: string; keyId: string | null }> {
   if (!apiKey) return { valid: false, tier: "none", keyId: null };
 
-  const keyHash = await hashData(apiKey);
+  const keyHash = await sha256(apiKey);
 
   const { data: keyData } = await supabase
     .from("api_keys")
@@ -84,6 +79,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Input validation
+    if (typeof exchangeId !== "string" || exchangeId.length > 50) {
+      return new Response(JSON.stringify({ error: "Invalid exchangeId" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Compute canonical timestamp via consensus
     const signals = collectTimeSignals();
     const canonicalTimestamp = byzantineConsensus(signals);
@@ -92,11 +95,16 @@ Deno.serve(async (req) => {
     const { data: seqData } = await supabase.rpc("nextval_trade_seq");
     const sequenceNumber = seqData ?? Date.now();
 
-    // Generate event hash and signature
+    // SECURITY FIX: Generate event hash and signature WITHOUT using service role key material
+    // Use a dedicated signing secret or HMAC with a separate key
     const eventData = `${canonicalTimestamp}-${sequenceNumber}-${exchangeId}-${JSON.stringify(orderData)}`;
-    const eventHash = await hashData(eventData);
-    const signature = await hashData(`sig-${eventHash}-${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(0, 16)}`);
-    const verificationHash = await hashData(`${eventHash}-${signature}`);
+    const eventHash = await sha256(eventData);
+    
+    // Use event-specific nonce for signature instead of service role key
+    const nonce = crypto.getRandomValues(new Uint8Array(16));
+    const nonceHex = Array.from(nonce).map(b => b.toString(16).padStart(2, "0")).join("");
+    const signature = await sha256(`sig-${eventHash}-${nonceHex}-${canonicalTimestamp}`);
+    const verificationHash = await sha256(`${eventHash}-${signature}`);
 
     // Store in ledger
     await supabase.from("trade_events").insert({

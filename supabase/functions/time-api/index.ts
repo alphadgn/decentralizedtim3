@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sha256 } from "../_shared/verify-privy-jwt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,24 +32,11 @@ function collectTimeSignals(): number[] {
   ];
 }
 
-function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(16, "0");
-}
-
 async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: boolean; tier: string; keyId: string | null }> {
   if (!apiKey) return { valid: false, tier: "none", keyId: null };
 
-  // Hash the key to look up
-  const encoder = new TextEncoder();
-  const data = encoder.encode(apiKey);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const keyHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+  // Use cryptographic SHA-256 hash (not weak djb2)
+  const keyHash = await sha256(apiKey);
 
   const { data: keyData } = await supabase
     .from("api_keys")
@@ -100,7 +88,7 @@ Deno.serve(async (req) => {
     if (req.method === "GET" && (path === "/time" || path === "" || path === "/")) {
       const signals = collectTimeSignals();
       const canonicalTime = byzantineConsensus(signals);
-      const consensusHash = hashString(`${canonicalTime}-${signals.length}`);
+      const consensusHash = await sha256(`${canonicalTime}-${signals.length}`);
 
       return new Response(JSON.stringify({
         canonicalTimestamp: canonicalTime,
@@ -128,13 +116,12 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Higher precision: more signals, tighter consensus
       const signals = [
         ...collectTimeSignals(),
         ...collectTimeSignals(),
       ];
       const canonicalTime = byzantineConsensus(signals);
-      const consensusHash = hashString(`${canonicalTime}-precision-${signals.length}`);
+      const consensusHash = await sha256(`${canonicalTime}-precision-${signals.length}`);
 
       return new Response(JSON.stringify({
         canonicalTimestamp: canonicalTime,
