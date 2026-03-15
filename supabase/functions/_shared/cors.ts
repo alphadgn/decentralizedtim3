@@ -1,22 +1,23 @@
 /**
  * Shared CORS configuration for all Edge Functions.
- * Restricts origins to production and preview domains only.
+ * Allows production, preview, and dev domains.
  */
 
 const ALLOWED_ORIGINS = [
   "https://decentralizedtim3.lovable.app",
   "https://id-preview--604fe7d4-ffda-4369-8729-382130c9bc18.lovable.app",
+  "https://604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
 ];
 
 export function getCorsHeaders(req?: Request): Record<string, string> {
   const origin = req?.headers.get("origin") ?? "";
-  // Also allow Supabase-internal calls (no origin header)
   const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-request-signature, x-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Vary": "Origin",
   };
 }
