@@ -342,6 +342,11 @@ async function executeSignalEngine(supabase: any, tier: string, path: string, bo
   const now = Date.now();
 
   if (path === "/api/anchors" || path === "/api/anchors/status") {
+    const anchorSeedHash = await hashData(`anchor-status-${now}`);
+    await ensureRecentAnchors(supabase, anchorSeedHash, now).catch((error) => {
+      console.error("anchor status refresh failed:", error);
+    });
+
     const anchors = await getAnchorStatuses(supabase);
     return {
       timestamp: now,
