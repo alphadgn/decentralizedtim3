@@ -366,6 +366,38 @@ export default function Developer() {
     },
   });
 
+  // Hourly chain integrity scan results from security_alerts
+  const { data: hourlyScans, isLoading: hourlyLoading } = useQuery({
+    queryKey: ["developer-hourly-integrity-scans"],
+    enabled: isSuperAdmin,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await supabase
+        .from("security_alerts")
+        .select("id, alert_type, severity, message, created_at, acknowledged, metadata")
+        .eq("alert_type", "hash_chain_tamper")
+        .order("created_at", { ascending: false })
+        .limit(24);
+
+      if (error) throw error;
+
+      // Also fetch latest integrity check result (even if clean — no alert created)
+      const { data: latestLog } = await supabase
+        .from("security_logs")
+        .select("id")
+        .order("chain_index", { ascending: false })
+        .limit(1);
+
+      const totalLogEntries = latestLog?.length ?? 0;
+
+      return {
+        alerts: data ?? [],
+        hasLogs: totalLogEntries > 0,
+      };
+    },
+  });
+
   const tabs: { id: TabId; label: string; icon: typeof Terminal }[] = [
     { id: "api", label: "REST API", icon: Terminal },
     { id: "sdk", label: "SDKs", icon: Code },
