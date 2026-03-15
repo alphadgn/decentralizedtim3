@@ -62,15 +62,20 @@ async function syncFromServer() {
     );
     if (res.ok) {
       const data = await res.json();
+      const timestamp = data.timestamp ?? data.epoch_ms ?? data.ts ?? Date.now();
+      const accuracyBand = data.accuracy_band ?? data.acc_tier ?? data.precision_level ?? "high";
+      const signalBand = data.signal_band ?? data.sig_tier ?? data.signal_quality ?? "strong";
+      const consensusStatus = data.consensus_status ?? "syncing";
+
       sharedState = {
         ...sharedState,
-        epoch: data.timestamp ?? Date.now(),
-        utc: data.iso ?? new Date().toISOString(),
-        confidenceBand: data.signal_band ?? "strong",
-        accuracyBand: data.accuracy_band ?? "high",
-        signalBand: data.signal_band ?? "strong",
-        syncStatus: data.consensus_status === "verified" ? "synced" : "syncing",
-        nodeCount: data.node_count ?? NODES.length,
+        epoch: timestamp,
+        utc: data.iso ?? new Date(timestamp).toISOString(),
+        confidenceBand: signalBand,
+        accuracyBand,
+        signalBand,
+        syncStatus: consensusStatus === "verified" || consensusStatus === "synced" ? "synced" : "syncing",
+        nodeCount: data.node_count ?? data.n_nodes ?? data.validator_count ?? NODES.length,
         lastSync: Date.now(),
       };
     } else {

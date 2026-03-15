@@ -83,7 +83,7 @@ export function Header() {
           <LogOut className="w-3.5 h-3.5" /> Sign Out
         </button>
       ) : (
-        <button onClick={handleSignIn} className="hover:text-foreground transition-colors flex items-center gap-1">
+        <button onClick={() => void handleSignIn()} className="hover:text-foreground transition-colors flex items-center gap-1">
           <LogIn className="w-3.5 h-3.5" /> Sign In
         </button>
       )}
