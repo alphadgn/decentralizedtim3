@@ -4,6 +4,7 @@ import { Globe, LogIn, LogOut, Shield, ShieldAlert, Menu, X, AlertTriangle, BarC
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 export function Header() {
   const { user, isAdmin, isSuperAdmin, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
@@ -20,8 +21,22 @@ export function Header() {
     navigate("/");
   };
 
-  const handleSignIn = () => {
-    login();
+  const handleSignIn = async () => {
+    const isPreviewDomain = window.location.hostname.includes("id-preview--") || window.location.hostname.includes("lovableproject.com");
+
+    if (isPreviewDomain) {
+      toast.warning("Preview sign-in is blocked by auth origin policy. Opening the published app for login.");
+      window.open("https://decentralizedtim3.lovable.app", "_blank", "noopener,noreferrer");
+      setMenuOpen(false);
+      return;
+    }
+
+    try {
+      await login();
+    } catch {
+      toast.error("Sign-in failed. Ensure the active domain is allowlisted in your Privy app settings.");
+    }
+
     setMenuOpen(false);
   };
 
@@ -68,7 +83,7 @@ export function Header() {
           <LogOut className="w-3.5 h-3.5" /> Sign Out
         </button>
       ) : (
-        <button onClick={handleSignIn} className="hover:text-foreground transition-colors flex items-center gap-1">
+        <button onClick={() => void handleSignIn()} className="hover:text-foreground transition-colors flex items-center gap-1">
           <LogIn className="w-3.5 h-3.5" /> Sign In
         </button>
       )}

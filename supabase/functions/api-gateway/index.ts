@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { ensureRecentAnchors, getAnchorStatuses } from "../_shared/blockchain-anchors.ts";
+import { verifySecurityLogChain } from "../_shared/hash-chain.ts";
+import { extractBearerToken, verifyPrivyJWT, verifyPrivyTokenLightweight } from "../_shared/verify-privy-jwt.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
@@ -78,9 +81,9 @@ function rotateFieldNames(data: Record<string, any>): Record<string, any> {
 
 // ── Tier-based field filtering ──
 const TIER_FIELDS: Record<string, string[]> = {
-  free: ["timestamp", "accuracy_band", "signal_band", "consensus_status"],
-  pro: ["timestamp", "accuracy_band", "signal_band", "consensus_status", "node_count", "drift_band", "analytics_summary"],
-  enterprise: ["timestamp", "accuracy", "signal_strength", "consensus_hash", "node_count", "drift_ms", "analytics", "sequence", "verification_hash", "sources"],
+  free: ["timestamp", "accuracy_band", "signal_band", "consensus_status", "anchors"],
+  pro: ["timestamp", "accuracy_band", "signal_band", "consensus_status", "node_count", "drift_band", "analytics_summary", "anchors"],
+  enterprise: ["timestamp", "accuracy", "signal_strength", "consensus_hash", "node_count", "drift_ms", "analytics", "sequence", "verification_hash", "sources", "anchors"],
 };
 
 // ── Honeypot paths ──
@@ -312,6 +315,7 @@ const SERVICE_MAP: Record<string, string> = {
   "/api/risk": "risk-engine",
   "/api/order": "order-engine",
   "/api/anchors": "signal-engine",
+  "/api/anchors/status": "signal-engine",
 };
 
 async function routeToService(
@@ -321,7 +325,7 @@ async function routeToService(
   // Each service only knows its part of the protocol
   switch (service) {
     case "signal-engine":
-      return await executeSignalEngine(tier, path, body);
+      return await executeSignalEngine(supabase, tier, path, body);
     case "analytics-engine":
       return await executeAnalyticsEngine(tier);
     case "risk-engine":
@@ -334,8 +338,27 @@ async function routeToService(
 }
 
 // ── Signal Engine (server-side only) ──
-async function executeSignalEngine(tier: string, path: string, body: any): Promise<Record<string, any>> {
+async function executeSignalEngine(supabase: any, tier: string, path: string, body: any): Promise<Record<string, any>> {
   const now = Date.now();
+
+  if (path === "/api/anchors" || path === "/api/anchors/status") {
+    const anchorSeedHash = await hashData(`anchor-status-${now}`);
+    await ensureRecentAnchors(supabase, anchorSeedHash, now).catch((error) => {
+      console.error("anchor status refresh failed:", error);
+    });
+
+    const anchors = await getAnchorStatuses(supabase);
+    return {
+      timestamp: now,
+      accuracy_band: "high",
+      signal_band: "strong",
+      consensus_status: anchors.every((a) => a.status === "synced") ? "verified" : "syncing",
+      anchors,
+      node_count: 16,
+      drift_band: "minimal",
+      analytics_summary: { anchors_tracked: anchors.length },
+    };
+  }
 
   // Byzantine consensus — all logic server-side
   const signalCount = tier === "enterprise" ? 16 : 8;
@@ -354,6 +377,15 @@ async function executeSignalEngine(tier: string, path: string, body: any): Promi
 
   const eventData = `${consensusTime}-${signalCount}-${Date.now()}`;
   const consensusHash = await hashData(eventData);
+
+  const anchorRefresh = ensureRecentAnchors(supabase, consensusHash, consensusTime).catch((error) => {
+    console.error("anchor refresh failed:", error);
+  });
+
+  const edgeRuntime = (globalThis as any).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(anchorRefresh);
+  }
 
   // Build full internal response
   const fullResponse: Record<string, any> = {
@@ -491,6 +523,106 @@ async function executeOrderEngine(supabase: any, tier: string, body: any): Promi
   };
 }
 
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function extractEmailFromPrivyPayload(payload: Record<string, any> | null): string | null {
+  if (!payload) return null;
+
+  if (typeof payload.email === "string") return payload.email;
+
+  const userEmail = payload.user?.email?.address;
+  if (typeof userEmail === "string") return userEmail;
+
+  if (Array.isArray(payload.linked_accounts)) {
+    const emailAccount = payload.linked_accounts.find((account: any) => {
+      const type = account?.type ?? account?.account_type;
+      return type === "email";
+    });
+
+    if (typeof emailAccount?.address === "string") return emailAccount.address;
+    if (typeof emailAccount?.email === "string") return emailAccount.email;
+  }
+
+  return null;
+}
+
+async function isSuperAdminRequest(req: Request, userId: string | null): Promise<boolean> {
+  const superAdminUuid = await getSuperAdminUuid();
+  if (userId === superAdminUuid) return true;
+
+  const token = extractBearerToken(req);
+  if (!token) return false;
+
+  const verifiedPayload = await verifyPrivyJWT(token);
+  let email = extractEmailFromPrivyPayload(verifiedPayload as Record<string, any> | null);
+
+  if (!email) {
+    const lightweight = verifyPrivyTokenLightweight(token);
+    if (!lightweight.valid) return false;
+    email = extractEmailFromPrivyPayload(decodeJwtPayload(token));
+  }
+
+  return email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+}
+
+async function buildDailySecurityScans(supabase: any): Promise<Record<string, any>> {
+  const chainReport = await verifySecurityLogChain(supabase);
+  const anchors = await getAnchorStatuses(supabase, 24 * 60 * 60 * 1000);
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const { data: criticalAlerts } = await supabase
+    .from("security_alerts")
+    .select("id")
+    .eq("severity", "critical")
+    .gte("created_at", startOfDay.toISOString());
+
+  const staleAnchors = anchors.filter((anchor) => anchor.status !== "synced");
+
+  return {
+    generated_at: new Date().toISOString(),
+    scans: [
+      {
+        id: "hash_chain_integrity",
+        label: "Hash-chain integrity",
+        status: chainReport.chain_unbroken ? "pass" : "fail",
+        summary: chainReport.chain_unbroken
+          ? `${chainReport.verified_entries}/${chainReport.total_entries} entries verified`
+          : `${chainReport.tampered_entries.length} tampered entries detected`,
+      },
+      {
+        id: "blockchain_testnet_anchors",
+        label: "Blockchain testnet anchoring",
+        status: staleAnchors.length === 0 ? "pass" : "warn",
+        summary: staleAnchors.length === 0
+          ? "Ethereum Sepolia, Solana Devnet, and Polygon Amoy are anchored"
+          : `${staleAnchors.length} chain(s) need re-sync`,
+      },
+      {
+        id: "daily_critical_alerts",
+        label: "Daily critical alert scan",
+        status: (criticalAlerts?.length ?? 0) === 0 ? "pass" : "warn",
+        summary: (criticalAlerts?.length ?? 0) === 0
+          ? "No critical alerts today"
+          : `${criticalAlerts?.length ?? 0} critical alert(s) recorded today`,
+      },
+    ],
+    tampered_entries: chainReport.tampered_entries,
+    anchors,
+  };
+}
+
 // ── Main handler ──
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -576,7 +708,10 @@ Deno.serve(async (req) => {
 
     // ── Rate limiting (super admin exempt) ──
     const superAdminUuid = await getSuperAdminUuid();
-    const isSuperAdmin = userId === superAdminUuid;
+    let isSuperAdmin = userId === superAdminUuid;
+    if (!isSuperAdmin) {
+      isSuperAdmin = await isSuperAdminRequest(req, userId);
+    }
 
     let allowed = true;
     let remaining = 9999;
@@ -615,6 +750,65 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           "X-RateLimit-Remaining": "0",
           "Retry-After": "60",
+        },
+      });
+    }
+
+    // ── Super-admin security scan endpoints ──
+    if (path === "/api/security/chain-integrity" || path === "/api/security/daily-scans") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (path === "/api/security/chain-integrity") {
+        const chainReport = await verifySecurityLogChain(supabase);
+
+        if (chainReport.tampered_entries.length > 0) {
+          const startOfDay = new Date();
+          startOfDay.setUTCHours(0, 0, 0, 0);
+
+          const { data: existingTamperAlert } = await supabase
+            .from("security_alerts")
+            .select("id")
+            .eq("alert_type", "hash_chain_tamper")
+            .gte("created_at", startOfDay.toISOString())
+            .limit(1);
+
+          if (!existingTamperAlert || existingTamperAlert.length === 0) {
+            await createSecurityAlert(supabase, {
+              alert_type: "hash_chain_tamper",
+              severity: "critical",
+              message: `${chainReport.tampered_entries.length} tampered security log entries detected`,
+              endpoint: path,
+              ip_address: ip,
+              metadata: {
+                tampered_entry_ids: chainReport.tampered_entries.slice(0, 20).map((entry) => entry.id),
+              },
+            });
+          }
+        }
+
+        return new Response(JSON.stringify(chainReport), {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": String(remaining),
+            "X-Response-Tier": effectiveTier,
+          },
+        });
+      }
+
+      const dailyScans = await buildDailySecurityScans(supabase);
+      return new Response(JSON.stringify(dailyScans), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Remaining": String(remaining),
+          "X-Response-Tier": effectiveTier,
         },
       });
     }
