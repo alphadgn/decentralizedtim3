@@ -585,6 +585,7 @@ export type Database = {
         Returns: boolean
       }
       nextval_trade_seq: { Args: never; Returns: number }
+      run_hourly_chain_integrity_scan: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "super_admin" | "admin" | "user"
