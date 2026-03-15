@@ -22,6 +22,28 @@ export function Header() {
   };
 
   const handleSignIn = async () => {
+    // Detect if current domain is NOT in Privy's allowed origins
+    const hostname = window.location.hostname;
+    const isAllowedOrigin =
+      hostname === "defitime.io" ||
+      hostname.endsWith(".lovable.app") ||
+      hostname.endsWith(".lovableproject.com");
+
+    if (!isAllowedOrigin) {
+      // Redirect to primary domain for auth
+      window.location.href = "https://defitime.io";
+      return;
+    }
+
+    // If on preview domain, redirect to production domain for sign-in
+    if (
+      hostname.includes("id-preview--") &&
+      !hostname.includes("decentralizedtim3")
+    ) {
+      window.location.href = "https://defitime.io";
+      return;
+    }
+
     try {
       await login();
     } catch {
