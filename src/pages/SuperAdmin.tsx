@@ -389,6 +389,8 @@ export default function SuperAdmin() {
                       className="bg-secondary border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
                     >
                       <option value="user">user</option>
+                      <option value="auditor">auditor</option>
+                      <option value="support">support</option>
                       <option value="admin">admin</option>
                       <option value="super_admin">super_admin</option>
                     </select>
