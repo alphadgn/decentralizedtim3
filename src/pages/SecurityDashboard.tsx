@@ -138,7 +138,7 @@ export default function SecurityDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isSuperAdmin, queryClient]);
+  }, [canView, queryClient]);
 
   const acknowledgeAlert = useMutation({
     mutationFn: async (alertId: string) => {
