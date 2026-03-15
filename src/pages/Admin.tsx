@@ -19,7 +19,7 @@ export default function Admin() {
       if (error) throw error;
       return data;
     },
-    enabled: isAdmin,
+    enabled: canView,
   });
 
   const { data: profiles = [] } = useQuery({
