@@ -184,10 +184,13 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        // Use upsert to handle case where profile doesn't exist yet
         const { error } = await supabase
           .from("profiles")
-          .update({ display_name, avatar_url: avatar_url || null })
-          .eq("user_id", userId);
+          .upsert(
+            { user_id: userId, display_name, avatar_url: avatar_url || null, updated_at: new Date().toISOString() },
+            { onConflict: "user_id" }
+          );
         if (error) throw error;
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

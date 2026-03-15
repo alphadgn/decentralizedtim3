@@ -6,7 +6,7 @@
  */
 
 const PRIVY_APP_ID = "cmmo24bor00mx0ci8zsdmpsq8";
-const PRIVY_JWKS_URL = `https://auth.privy.io/api/v1/apps/${PRIVY_APP_ID}/.well-known/jwks.json`;
+const PRIVY_JWKS_URL = `https://auth.privy.io/api/v1/apps/${PRIVY_APP_ID}/jwks.json`;
 
 // Cache JWKS keys for 1 hour
 let cachedKeys: { keys: JsonWebKey[]; fetchedAt: number } | null = null;

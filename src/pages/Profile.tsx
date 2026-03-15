@@ -166,6 +166,8 @@ export default function Profile() {
   if (!user) return <Navigate to="/" replace />;
 
   const email = (user as any)?.email?.address ?? "—";
+  const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
+  const effectiveRole = (email.toLowerCase() === SUPER_ADMIN_EMAIL) ? "super_admin" : role;
   const joinDate = profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—";
   const initials = (displayName || email)
     .split(/[@.\s]/)
@@ -257,7 +259,7 @@ export default function Profile() {
             <div className="space-y-3">
               {[
                 { icon: Mail, label: "Email", value: email },
-                { icon: Shield, label: "Role", value: role === "super_admin" ? "Super Administrator" : role === "admin" ? "Administrator" : role || "User" },
+                { icon: Shield, label: "Role", value: effectiveRole === "super_admin" ? "Super Administrator" : effectiveRole === "admin" ? "Administrator" : effectiveRole || "User" },
                 { icon: Clock, label: "Joined", value: joinDate },
                 { icon: User, label: "User ID", value: userId?.slice(0, 8) + "..." },
               ].map((item) => (
