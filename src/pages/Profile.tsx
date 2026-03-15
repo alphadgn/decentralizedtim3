@@ -167,7 +167,8 @@ export default function Profile() {
 
   const email = (user as any)?.email?.address ?? "—";
   const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
-  const effectiveRole = (email.toLowerCase() === SUPER_ADMIN_EMAIL) ? "super_admin" : role;
+  const isSuperAdminAccount = email !== "—" && email.toLowerCase() === SUPER_ADMIN_EMAIL;
+  const effectiveRole = isSuperAdminAccount ? "super_admin" : (role === "super_admin" ? "super_admin" : role);
   const joinDate = profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—";
   const initials = (displayName || email)
     .split(/[@.\s]/)
