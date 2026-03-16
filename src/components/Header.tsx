@@ -45,10 +45,11 @@ export function Header() {
   const handleSignIn = async () => {
     const currentOrigin = window.location.origin;
 
-    // Privy validates exact origins (scheme + host), not just hostnames.
-    if (!PRIVY_ALLOWED_ORIGINS.has(currentOrigin)) {
+    // In embedded preview contexts, navigate top-level to production if origin is unsupported.
+    if (!canOpenPrivyModal(currentOrigin)) {
       const redirectPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      window.location.href = new URL(redirectPath, AUTH_REDIRECT_ORIGIN).toString();
+      const redirectUrl = new URL(redirectPath, AUTH_REDIRECT_ORIGIN).toString();
+      window.open(redirectUrl, "_top");
       return;
     }
 

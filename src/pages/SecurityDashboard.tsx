@@ -309,6 +309,9 @@ export default function SecurityDashboard() {
           <p className="text-sm font-mono text-muted-foreground">
             Real-time security events, blocked IPs, and honeypot detections
           </p>
+          <p className="text-xs font-mono text-muted-foreground mt-1">
+            Last scan sync: <span className="text-foreground">{lastScanSyncLabel}</span>
+          </p>
         </motion.div>
 
         {/* Stats Cards */}
