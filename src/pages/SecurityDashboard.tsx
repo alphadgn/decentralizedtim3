@@ -60,7 +60,12 @@ export default function SecurityDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Security logs
-  const { data: securityLogs = [], refetch: refetchLogs, isLoading: logsLoading } = useQuery({
+  const {
+    data: securityLogs = [],
+    refetch: refetchLogs,
+    isLoading: logsLoading,
+    dataUpdatedAt: logsUpdatedAt,
+  } = useQuery({
     queryKey: ["security-logs"],
     queryFn: async (): Promise<SecurityLogRow[]> => {
       const { data, error } = await supabase
@@ -77,7 +82,11 @@ export default function SecurityDashboard() {
   });
 
   // Blocked IPs
-  const { data: blockedIps = [], refetch: refetchIps } = useQuery({
+  const {
+    data: blockedIps = [],
+    refetch: refetchIps,
+    dataUpdatedAt: blockedIpsUpdatedAt,
+  } = useQuery({
     queryKey: ["blocked-ips"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -127,7 +136,11 @@ export default function SecurityDashboard() {
   });
 
   // Daily security scans (3 checks) surfaced inside Security Logs
-  const { data: dailyScanLogs = [], refetch: refetchDailyScans } = useQuery({
+  const {
+    data: dailyScanLogs = [],
+    refetch: refetchDailyScans,
+    dataUpdatedAt: dailyScansUpdatedAt,
+  } = useQuery({
     queryKey: ["security-daily-scans", userId],
     enabled: isSuperAdmin && !!userId,
     refetchInterval: 60_000,
@@ -228,6 +241,9 @@ export default function SecurityDashboard() {
     (ip) => ip.blocked_until && new Date(ip.blocked_until) > new Date()
   ).length;
 
+  const latestSyncMs = Math.max(logsUpdatedAt ?? 0, blockedIpsUpdatedAt ?? 0, dailyScansUpdatedAt ?? 0);
+  const lastScanSyncLabel = latestSyncMs > 0 ? new Date(latestSyncMs).toLocaleString() : "Waiting for first sync…";
+
   const filteredLogs = combinedLogs.filter((log) => {
     if (severityFilter !== "all" && log.severity !== severityFilter) return false;
 
@@ -292,6 +308,9 @@ export default function SecurityDashboard() {
           </div>
           <p className="text-sm font-mono text-muted-foreground">
             Real-time security events, blocked IPs, and honeypot detections
+          </p>
+          <p className="text-xs font-mono text-muted-foreground mt-1">
+            Last scan sync: <span className="text-foreground">{lastScanSyncLabel}</span>
           </p>
         </motion.div>
 

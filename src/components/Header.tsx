@@ -6,14 +6,26 @@ import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
-const AUTH_REDIRECT_ORIGIN = "http://defitime.io";
+const AUTH_REDIRECT_ORIGIN = "https://defitime.io";
 const PRIVY_ALLOWED_ORIGINS = new Set([
+  "https://defitime.io",
   "http://defitime.io",
+  "https://www.defitime.io",
+  "http://www.defitime.io",
   "https://decentralizedtim3.lovable.app",
   "https://www.decentralizedtim3.lovable.app",
-  "https://604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
-  "https://www.604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
 ]);
+
+const isLovableHostedOrigin = (origin: string) => {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return protocol === "https:" && (hostname.endsWith(".lovable.app") || hostname.endsWith(".lovableproject.com"));
+  } catch {
+    return false;
+  }
+};
+
+const canOpenPrivyModal = (origin: string) => PRIVY_ALLOWED_ORIGINS.has(origin) || isLovableHostedOrigin(origin);
 
 export function Header() {
   const { user, isAdmin, isSuperAdmin, isAuditor, isSupport, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
@@ -33,10 +45,11 @@ export function Header() {
   const handleSignIn = async () => {
     const currentOrigin = window.location.origin;
 
-    // Privy validates exact origins (scheme + host), not just hostnames.
-    if (!PRIVY_ALLOWED_ORIGINS.has(currentOrigin)) {
+    // In embedded preview contexts, navigate top-level to production if origin is unsupported.
+    if (!canOpenPrivyModal(currentOrigin)) {
       const redirectPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-      window.location.href = new URL(redirectPath, AUTH_REDIRECT_ORIGIN).toString();
+      const redirectUrl = new URL(redirectPath, AUTH_REDIRECT_ORIGIN).toString();
+      window.open(redirectUrl, "_top");
       return;
     }
 
