@@ -118,6 +118,7 @@ export function useAuth() {
   return {
     user: authenticated && !state.unauthorized && !state.blocked ? privyUser : null,
     userId: state.userId,
+    email,
     session: null,
     role: state.role,
     loading: !ready || state.loading,
