@@ -7,6 +7,7 @@ import { BlockchainStatus } from "@/components/BlockchainStatus";
 import { SyncIndicator } from "@/components/SyncIndicator";
 
 const SUPPORT_EMAIL = "decentralizedtim3@gmail.com";
+const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}`;
 
 const Index = () => {
   return (
@@ -39,9 +40,14 @@ const Index = () => {
           <p className="text-[10px] font-mono text-muted-foreground">
             Support:{" "}
             <a
-              href={`mailto:${SUPPORT_EMAIL}`}
+              href={SUPPORT_EMAIL_HREF}
+              target="_top"
+              rel="noopener noreferrer"
               className="inline-flex items-center py-1 text-primary hover:underline"
               aria-label="Email DGTN support"
+              onClick={() => {
+                window.location.assign(SUPPORT_EMAIL_HREF);
+              }}
             >
               {SUPPORT_EMAIL}
             </a>

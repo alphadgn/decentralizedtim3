@@ -39,6 +39,9 @@ function generateLogs() {
   });
 }
 
+const SUPPORT_EMAIL = "decentralizedtim3@gmail.com";
+const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}`;
+
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -457,6 +460,22 @@ export default function Dashboard() {
             ))}
           </motion.div>
         )}
+
+        <footer className="text-center py-6 text-xs font-mono text-muted-foreground">
+          Support:{" "}
+          <a
+            href={SUPPORT_EMAIL_HREF}
+            target="_top"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+            aria-label="Email DGTN support"
+            onClick={() => {
+              window.location.assign(SUPPORT_EMAIL_HREF);
+            }}
+          >
+            {SUPPORT_EMAIL}
+          </a>
+        </footer>
       </main>
     </div>
   );
