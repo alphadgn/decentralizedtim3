@@ -932,11 +932,13 @@ export default function EnterpriseTrading() {
               <p className="text-xs font-mono text-muted-foreground mb-4">
                 Cryptographically verifiable trade ordering endpoints with post-quantum signatures, Merkle proofs, and blockchain anchoring. All requests require an Enterprise API key with HMAC-SHA256 request signing.
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                 {[
                   { label: "Latency-Neutral Ordering", icon: Globe },
                   { label: "Merkle Event Ledger", icon: GitBranch },
                   { label: "Post-Quantum Signatures", icon: Fingerprint },
+                  { label: "Hardware Root of Trust", icon: HardDrive },
+                  { label: "Formal Verification", icon: BookOpen },
                   { label: "Blockchain Anchoring", icon: Lock },
                 ].map((f) => (
                   <div key={f.label} className="bg-secondary/40 rounded-lg p-3 flex items-center gap-2">
@@ -948,7 +950,9 @@ export default function EnterpriseTrading() {
               <div className="bg-secondary/30 rounded-lg p-3 text-[10px] font-mono text-muted-foreground">
                 <span className="text-primary">Ordering Rule:</span>{" "}
                 median_receive_time_consensus → ordering_hash → sequence_number |{" "}
-                <span className="text-accent">Crypto:</span> CRYSTALS-Dilithium3 + Kyber768
+                <span className="text-accent">Crypto:</span> Dilithium3 + Kyber768 |{" "}
+                <span className="text-accent">HW:</span> HSM + SGX |{" "}
+                <span className="text-accent">Proofs:</span> 15/15 verified
               </div>
             </div>
 
