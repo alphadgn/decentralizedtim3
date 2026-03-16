@@ -28,9 +28,31 @@ import {
 } from "@/components/ui/table";
 
 type SeverityFilter = "all" | "critical" | "warning" | "error" | "info";
+type DailyScanStatus = "pass" | "warn" | "fail";
+
+type SecurityLogRow = {
+  id: string;
+  created_at: string;
+  severity: string;
+  event_type: string;
+  ip_address: string | null;
+  endpoint: string | null;
+  response_code: number | null;
+  user_agent: string | null;
+};
+
+type DailyScansResponse = {
+  generated_at: string;
+  scans: {
+    id: string;
+    label: string;
+    status: DailyScanStatus;
+    summary: string;
+  }[];
+};
 
 export default function SecurityDashboard() {
-  const { user, isSuperAdmin, isAuditor, loading } = useAuth();
+  const { user, userId, isSuperAdmin, isAuditor, loading, getAccessToken } = useAuth();
   const canView = isSuperAdmin || isAuditor;
   const readOnly = isAuditor && !isSuperAdmin;
   const queryClient = useQueryClient();
@@ -39,19 +61,14 @@ export default function SecurityDashboard() {
 
   // Security logs
   const { data: securityLogs = [], refetch: refetchLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ["security-logs", severityFilter],
-    queryFn: async () => {
-      let query = supabase
+    queryKey: ["security-logs"],
+    queryFn: async (): Promise<SecurityLogRow[]> => {
+      const { data, error } = await supabase
         .from("security_logs")
-        .select("*")
+        .select("id, created_at, severity, event_type, ip_address, endpoint, response_code, user_agent")
         .order("created_at", { ascending: false })
         .limit(200);
 
-      if (severityFilter !== "all") {
-        query = query.eq("severity", severityFilter);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -109,6 +126,46 @@ export default function SecurityDashboard() {
     enabled: canView,
   });
 
+  // Daily security scans (3 checks) surfaced inside Security Logs
+  const { data: dailyScanLogs = [], refetch: refetchDailyScans } = useQuery({
+    queryKey: ["security-daily-scans", userId],
+    enabled: isSuperAdmin && !!userId,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<SecurityLogRow[]> => {
+      const token = await getAccessToken();
+      if (!token || !userId) return [];
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/api-gateway/api/security/daily-scans`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-user-id": userId,
+        },
+      });
+
+      if (!response.ok) return [];
+
+      const payload = (await response.json()) as DailyScansResponse;
+      const generatedAt = payload.generated_at ?? new Date().toISOString();
+
+      return (payload.scans ?? []).map((scan) => {
+        const severity = scan.status === "fail" ? "critical" : scan.status === "warn" ? "warning" : "info";
+        const responseCode = scan.status === "fail" ? 500 : scan.status === "warn" ? 206 : 200;
+
+        return {
+          id: `daily-scan-${generatedAt}-${scan.id}`,
+          created_at: generatedAt,
+          severity,
+          event_type: `daily_scan: ${scan.label}`,
+          ip_address: null,
+          endpoint: scan.summary,
+          response_code: responseCode,
+          user_agent: "daily_scan",
+        };
+      });
+    },
+  });
+
   // Realtime subscription for security_alerts
   useEffect(() => {
     if (!canView) return;
@@ -124,12 +181,10 @@ export default function SecurityDashboard() {
         },
         (payload) => {
           const newAlert = payload.new as any;
-          // Show toast notification
           const icon = newAlert.severity === "critical" ? "🚨" : "⚠️";
           toast.warning(`${icon} ${newAlert.alert_type}: ${newAlert.message}`, {
             duration: 10000,
           });
-          // Invalidate query to refresh the list
           queryClient.invalidateQueries({ queryKey: ["security-alerts"] });
         }
       )
@@ -151,6 +206,10 @@ export default function SecurityDashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["security-alerts"] }),
   });
 
+  const combinedLogs = [...dailyScanLogs, ...securityLogs].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
   // Stats
   const criticalCount = securityLogs.filter((l) => l.severity === "critical").length;
   const warningCount = securityLogs.filter((l) => l.severity === "warning").length;
@@ -159,7 +218,9 @@ export default function SecurityDashboard() {
     (ip) => ip.blocked_until && new Date(ip.blocked_until) > new Date()
   ).length;
 
-  const filteredLogs = securityLogs.filter((log) => {
+  const filteredLogs = combinedLogs.filter((log) => {
+    if (severityFilter !== "all" && log.severity !== severityFilter) return false;
+
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
