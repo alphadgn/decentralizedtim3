@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 export default function Profile() {
-  const { user, userId, role, loading, getAccessToken } = useAuth();
+  const { user, userId, email: authEmail, role, loading, getAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
