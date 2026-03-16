@@ -790,6 +790,9 @@ async function executeGMCEngine(
       "api-gateway", "gmc-engine", "POST", "/api/gmc/commit_trade"
     );
 
+    // Phase 13: Hardware root of trust chain verification
+    const trustChain = await buildTrustChain(`validator-gmc-primary`, eventHash);
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
