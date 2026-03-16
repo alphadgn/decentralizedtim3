@@ -121,6 +121,7 @@ export default function Dashboard() {
       return invokeProfileApi({
         action: "generate_api_key",
         userId,
+        email: authEmail,
         name: newKeyName || "Default",
         expires_at: newKeyExpiry ? new Date(newKeyExpiry).toISOString() : null,
       });
