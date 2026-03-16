@@ -84,7 +84,7 @@ const COMPARISON = [
 ];
 
 export default function Pricing() {
-  const { login, user, userId } = useAuth();
+  const { login, user, userId, getAccessToken } = useAuth();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
   const email = extractPrivyEmail(user);
