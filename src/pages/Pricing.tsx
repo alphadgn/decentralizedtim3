@@ -84,7 +84,7 @@ const COMPARISON = [
 ];
 
 export default function Pricing() {
-  const { login, user, userId } = useAuth();
+  const { login, user, userId, getAccessToken } = useAuth();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
   const email = extractPrivyEmail(user);
@@ -108,13 +108,13 @@ export default function Pricing() {
 
     setLoadingTier(tier);
     try {
+      const token = await getAccessToken();
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: {
           tier,
           email,
-          userId,
-          returnUrl: window.location.origin,
         },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (error) throw error;

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailToUuid } from "../_shared/verify-privy-jwt.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 // Stripe price IDs — to be configured when Stripe is connected
@@ -7,6 +8,19 @@ const PRICE_IDS: Record<string, string> = {
   pro: Deno.env.get("STRIPE_PRO_PRICE_ID") ?? "",
   enterprise: Deno.env.get("STRIPE_ENTERPRISE_PRICE_ID") ?? "",
 };
+
+const ALLOWED_TIERS = ["pro", "enterprise"];
+
+async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; privySub: string | null }> {
+  const token = extractBearerToken(req);
+  if (!token) return { authenticated: false, privySub: null };
+
+  const payload = await verifyPrivyJWT(token);
+  if (payload) return { authenticated: true, privySub: payload.sub };
+
+  const lightweight = verifyPrivyTokenLightweight(token);
+  return { authenticated: lightweight.valid, privySub: lightweight.sub };
+}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -22,6 +36,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- Authentication: require valid Privy JWT ---
+    const { authenticated } = await authenticateRequest(req);
+    if (!authenticated) {
+      return new Response(JSON.stringify({ error: "Unauthorized — valid Privy token required" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       return new Response(JSON.stringify({
@@ -33,21 +56,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tier, email, userId, returnUrl } = await req.json();
+    const { tier, email, returnUrl } = await req.json();
 
-    if (!tier || !email) {
-      return new Response(JSON.stringify({ error: "Missing tier or email" }), {
+    // Validate tier
+    if (!tier || !ALLOWED_TIERS.includes(tier)) {
+      return new Response(JSON.stringify({ error: "Invalid or missing tier" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (tier === "free") {
-      return new Response(JSON.stringify({ error: "Free tier does not require checkout" }), {
+    // Validate email
+    if (!email || typeof email !== "string" || !email.includes("@") || email.length > 255) {
+      return new Response(JSON.stringify({ error: "Valid email is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Derive userId server-side from email — never trust client-supplied userId
+    const userId = await emailToUuid(email.toLowerCase());
 
     const priceId = PRICE_IDS[tier];
     if (!priceId) {
@@ -103,8 +131,12 @@ Deno.serve(async (req) => {
       }, { onConflict: "user_id" });
     }
 
-    // Create Checkout Session
-    const origin = returnUrl || req.headers.get("origin") || "https://defitime.io";
+    // Create Checkout Session — only allow known origins
+    const allowedOrigins = ["https://defitime.io", "https://decentralizedtim3.lovable.app"];
+    const requestOrigin = req.headers.get("origin") || "";
+    const origin = allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0];
+    // Ignore client-supplied returnUrl to prevent open redirect
+
     const sessionRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
       headers: {

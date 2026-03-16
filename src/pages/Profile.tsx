@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 export default function Profile() {
-  const { user, userId, role, loading, getAccessToken } = useAuth();
+  const { user, userId, email: authEmail, role, loading, getAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
@@ -35,8 +35,8 @@ export default function Profile() {
   // Use edge function for profile data
   const { data: profile } = useQuery({
     queryKey: ["my-profile", userId],
-    queryFn: () => invokeProfileApi({ action: "get_profile", userId }).then((d) => d?.profile),
-    enabled: !!userId,
+    queryFn: () => invokeProfileApi({ action: "get_profile", userId, email: authEmail }).then((d) => d?.profile),
+    enabled: !!userId && !!authEmail,
   });
 
   const { data: myNodes = [] } = useQuery({
@@ -70,8 +70,8 @@ export default function Profile() {
   // Preferences via edge function
   const { data: preferences } = useQuery({
     queryKey: ["user-preferences", userId],
-    queryFn: () => invokeProfileApi({ action: "get_preferences", userId }).then((d) => d?.preferences),
-    enabled: !!userId,
+    queryFn: () => invokeProfileApi({ action: "get_preferences", userId, email: authEmail }).then((d) => d?.preferences),
+    enabled: !!userId && !!authEmail,
   });
 
   const [prefs, setPrefs] = useState({
@@ -93,7 +93,7 @@ export default function Profile() {
   const togglePref = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       if (!userId) throw new Error("Not authenticated");
-      await invokeProfileApi({ action: "toggle_preference", userId, key, value });
+      await invokeProfileApi({ action: "toggle_preference", userId, email: authEmail, key, value });
       setPrefs((prev) => ({ ...prev, [key]: value }));
     },
     onSuccess: (_, { key, value }) => {
@@ -130,6 +130,7 @@ export default function Profile() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("userId", userId);
+      formData.append("email", authEmail || "");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -157,7 +158,7 @@ export default function Profile() {
   };
 
   const updateProfile = useMutation({
-    mutationFn: () => invokeProfileApi({ action: "update_profile", userId, display_name: displayName, avatar_url: avatarUrl || null }),
+    mutationFn: () => invokeProfileApi({ action: "update_profile", userId, email: authEmail, display_name: displayName, avatar_url: avatarUrl || null }),
     onSuccess: () => {
       toast.success("Profile updated");
       queryClient.invalidateQueries({ queryKey: ["my-profile"] });
@@ -169,10 +170,8 @@ export default function Profile() {
   if (!user) return <Navigate to="/" replace />;
 
   const email = extractPrivyEmail(user) ?? "—";
-  const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
-  const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
-  const isSuperAdminAccount = (email !== "—" && email?.toLowerCase() === SUPER_ADMIN_EMAIL) || (userId === SUPER_ADMIN_USER_ID);
-  const effectiveRole = isSuperAdminAccount ? "super_admin" : (role === "super_admin" ? "super_admin" : role);
+  // Role is determined server-side — trust what useAuth returns
+  const effectiveRole = role;
   const joinDate = profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—";
   const initials = (displayName || email)
     .split(/[@.\s]/)

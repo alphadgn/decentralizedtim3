@@ -53,7 +53,7 @@ function CopyBtn({ text }: { text: string }) {
 }
 
 export default function Dashboard() {
-  const { user, userId, loading, getAccessToken } = useAuth();
+  const { user, userId, email: authEmail, loading, getAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
@@ -87,7 +87,7 @@ export default function Dashboard() {
       if (!userId) return [];
       const token = await getAccessToken();
       const { data, error } = await supabase.functions.invoke("profile-api", {
-        body: { action: "get_profile", userId },
+        body: { action: "get_profile", userId, email: authEmail },
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       // Fetch keys via direct query (service role reads via profile-api don't have a list action yet)
@@ -121,6 +121,7 @@ export default function Dashboard() {
       return invokeProfileApi({
         action: "generate_api_key",
         userId,
+        email: authEmail,
         name: newKeyName || "Default",
         expires_at: newKeyExpiry ? new Date(newKeyExpiry).toISOString() : null,
       });
@@ -140,7 +141,7 @@ export default function Dashboard() {
   const revokeKey = useMutation({
     mutationFn: async (keyId: string) => {
       if (!userId) throw new Error("Not authenticated");
-      return invokeProfileApi({ action: "revoke_api_key", userId, keyId });
+      return invokeProfileApi({ action: "revoke_api_key", userId, email: authEmail, keyId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard-api-keys"] });

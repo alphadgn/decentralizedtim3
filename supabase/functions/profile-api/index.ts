@@ -2,15 +2,48 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailToUuid } from "../_shared/verify-privy-jwt.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; privySub: string | null }> {
+interface AuthResult {
+  authenticated: boolean;
+  privySub: string | null;
+  email: string | null;
+}
+
+async function authenticateRequest(req: Request): Promise<AuthResult> {
   const token = extractBearerToken(req);
-  if (!token) return { authenticated: false, privySub: null };
+  if (!token) return { authenticated: false, privySub: null, email: null };
 
   const payload = await verifyPrivyJWT(token);
-  if (payload) return { authenticated: true, privySub: payload.sub };
+  if (payload) {
+    // Extract email from JWT custom claims if present
+    const email = (payload as any).email ?? (payload as any).email_address ?? null;
+    return { authenticated: true, privySub: payload.sub, email };
+  }
 
   const lightweight = verifyPrivyTokenLightweight(token);
-  return { authenticated: lightweight.valid, privySub: lightweight.sub };
+  return { authenticated: lightweight.valid, privySub: lightweight.sub, email: null };
+}
+
+/**
+ * Derives and validates the canonical userId from the request.
+ * The client MUST send `email` in the body; the server derives userId via emailToUuid
+ * and rejects any mismatch with the client-supplied userId.
+ */
+async function deriveAndValidateUserId(
+  clientUserId: string,
+  clientEmail: string | undefined,
+): Promise<{ valid: boolean; userId: string; error?: string }> {
+  if (!clientEmail || typeof clientEmail !== "string" || !clientEmail.includes("@")) {
+    return { valid: false, userId: "", error: "Email is required for identity verification" };
+  }
+
+  const derivedUserId = await emailToUuid(clientEmail.toLowerCase());
+
+  if (clientUserId && clientUserId !== derivedUserId) {
+    console.warn(`IDOR attempt blocked: client sent userId=${clientUserId}, derived=${derivedUserId}`);
+    return { valid: false, userId: "", error: "Identity mismatch — unauthorized" };
+  }
+
+  return { valid: true, userId: derivedUserId };
 }
 
 Deno.serve(async (req) => {
@@ -40,10 +73,21 @@ Deno.serve(async (req) => {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const file = formData.get("file") as File;
-      const userId = formData.get("userId") as string;
+      const clientUserId = formData.get("userId") as string;
+      const clientEmail = formData.get("email") as string;
 
-      if (!file || !userId) {
-        return new Response(JSON.stringify({ error: "Missing file or userId" }), {
+      // Derive userId server-side from email — never trust client userId alone
+      const identity = await deriveAndValidateUserId(clientUserId, clientEmail);
+      if (!identity.valid) {
+        return new Response(JSON.stringify({ error: identity.error }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userId = identity.userId;
+
+      if (!file) {
+        return new Response(JSON.stringify({ error: "Missing file" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -100,14 +144,17 @@ Deno.serve(async (req) => {
 
     // Handle JSON requests
     const body = await req.json();
-    const { action, userId, ...payload } = body;
+    const { action, userId: clientUserId, email: clientEmail, ...payload } = body;
 
-    if (!userId || typeof userId !== "string" || userId.length > 100) {
-      return new Response(JSON.stringify({ error: "Invalid userId" }), {
-        status: 400,
+    // Derive and validate userId from email server-side
+    const identity = await deriveAndValidateUserId(clientUserId, clientEmail);
+    if (!identity.valid) {
+      return new Response(JSON.stringify({ error: identity.error }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = identity.userId;
 
     switch (action) {
       case "get_preferences": {
