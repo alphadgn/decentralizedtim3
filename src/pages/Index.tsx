@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { Header } from "@/components/Header";
 import { GlobalClock } from "@/components/GlobalClock";
 import { NetworkMap } from "@/components/NetworkMap";
@@ -9,7 +10,7 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 const SUPPORT_EMAIL = "decentralizedtim3@gmail.com";
 
 const Index = () => {
-  const handleSupportEmailClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleSupportEmailClick = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     window.location.href = `mailto:${SUPPORT_EMAIL}`;
   };
