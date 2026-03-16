@@ -1092,6 +1092,31 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── GMC dynamic routes (event_proof, ledger_block) ──
+    if (path.startsWith("/api/gmc/event_proof/") || path.startsWith("/api/gmc/ledger_block/")) {
+      // Require enterprise tier
+      if (effectiveTier !== "enterprise") {
+        return new Response(JSON.stringify({ error: "Enterprise tier required for Global Market Clock" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const gmcResult = await handleGMCDynamicRoute(supabase, path);
+      if (gmcResult) {
+        const statusCode = gmcResult.error ? (gmcResult.code === "NOT_FOUND" ? 404 : 400) : 200;
+        return new Response(JSON.stringify(gmcResult), {
+          status: statusCode,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": String(remaining),
+            "X-Response-Tier": effectiveTier,
+          },
+        });
+      }
+    }
+
     // ── Route to internal service ──
     const service = SERVICE_MAP[path];
     if (!service) {
