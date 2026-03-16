@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ShieldAlert,
@@ -82,6 +82,7 @@ export default function SecurityDashboard() {
   const canView = isSuperAdmin || isAuditor;
   const readOnly = isAuditor && !isSuperAdmin;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -545,19 +546,23 @@ export default function SecurityDashboard() {
                         <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                           {new Date(scan.ran_at).toLocaleString()}
                         </span>
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                          scan.scans.some((s) => s.status === "fail")
-                            ? "bg-destructive/20 text-destructive"
-                            : scan.scans.some((s) => s.status === "warn")
-                            ? "bg-yellow-500/20 text-yellow-400"
-                            : "bg-accent/20 text-accent"
-                        }`}>
+                        <button
+                          onClick={() => navigate(`/security/scan/${scan.id}`)}
+                          className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 cursor-pointer hover:ring-1 hover:ring-foreground/20 transition-all ${
+                            scan.scans.some((s) => s.status === "fail")
+                              ? "bg-destructive/20 text-destructive"
+                              : scan.scans.some((s) => s.status === "warn")
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : "bg-accent/20 text-accent"
+                          }`}
+                          title="View scan details"
+                        >
                           {scan.scans.some((s) => s.status === "fail")
                             ? "FAIL"
                             : scan.scans.some((s) => s.status === "warn")
                             ? "WARN"
                             : "PASS"}
-                        </span>
+                        </button>
                       </div>
                       <div className="space-y-1.5">
                         {scan.scans.map((check) => (

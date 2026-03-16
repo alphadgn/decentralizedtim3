@@ -15,6 +15,7 @@ import EnterpriseTrading from "./pages/EnterpriseTrading.tsx";
 import Profile from "./pages/Profile.tsx";
 import Pricing from "./pages/Pricing.tsx";
 import SecurityDashboard from "./pages/SecurityDashboard.tsx";
+import ScanDetail from "./pages/ScanDetail.tsx";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/security" element={<SecurityDashboard />} />
+            <Route path="/security/scan/:scanId" element={<ScanDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
