@@ -45,13 +45,19 @@ export function useAuth() {
       console.error("Failed to get access token:", e);
     }
 
+    // If no valid Privy token, treat as unauthenticated (avoids sending anon key as Bearer)
+    if (!accessToken) {
+      setState((prev) => ({ ...prev, role: null, loading: false, userId: null, unauthorized: false }));
+      return;
+    }
+
     // Step 1: Check if email is approved via edge function
     // The server determines admin exemptions — no client-side checks needed
     const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
       "sync-privy-user",
       {
         body: { email, action: "check_approval" },
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
