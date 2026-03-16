@@ -82,6 +82,7 @@ export default function SecurityDashboard() {
   const canView = isSuperAdmin || isAuditor;
   const readOnly = isAuditor && !isSuperAdmin;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
