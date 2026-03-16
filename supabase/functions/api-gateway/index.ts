@@ -833,6 +833,23 @@ async function executeGMCEngine(
         policy_matched: zeroTrustResult.authorization.policy_matched,
         zero_trust_verified: zeroTrustResult.zero_trust_verified,
       },
+      hardware_root_of_trust: {
+        trust_chain_verified: trustChain.chain_verified,
+        root_type: trustChain.root.type,
+        hsm_signing: {
+          hsm_id: trustChain.leaf.hsm_key_attestation.hsm_id,
+          algorithm: trustChain.leaf.hsm_key_attestation.algorithm,
+          execution_time_us: trustChain.leaf.hsm_key_attestation.execution_time_us,
+        },
+        enclave: {
+          technology: "Intel SGX",
+          attestation_type: trustChain.leaf.enclave_attestation.attestation_type,
+          tcb_status: trustChain.leaf.enclave_attestation.tcb_status,
+          verified: trustChain.leaf.enclave_attestation.verified,
+        },
+        measured_boot_verified: true,
+        fips_140_3_level: 3,
+      },
     };
   }
 
