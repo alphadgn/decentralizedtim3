@@ -794,6 +794,11 @@ async function executeGMCEngine(
     // Phase 13: Hardware root of trust chain verification
     const trustChain = await buildTrustChain(`validator-gmc-primary`, eventHash);
 
+    // Phase 14: Formal verification — runtime property checks
+    const formalVerification = await verifyProtocolProperties(
+      eventHash, sequenceNumber, canonicalTimestamp, validatorSignatures.length
+    );
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
@@ -853,6 +858,14 @@ async function executeGMCEngine(
         },
         measured_boot_verified: true,
         fips_140_3_level: 3,
+      },
+      formal_verification: {
+        all_properties_hold: formalVerification.all_properties_hold,
+        verified_properties: formalVerification.verified_properties,
+        total_properties: formalVerification.total_properties,
+        invariants_checked: formalVerification.invariants_checked,
+        invariants_holding: formalVerification.invariants_holding,
+        verification_hash: formalVerification.verification_hash,
       },
     };
   }
