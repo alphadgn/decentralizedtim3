@@ -316,6 +316,8 @@ async function routeToService(
       return await executeRiskEngine(tier);
     case "order-engine":
       return await executeOrderEngine(supabase, tier, body);
+    case "gmc-engine":
+      return await executeGMCEngine(supabase, tier, path, body);
     default:
       return { error: "Service unavailable" };
   }
