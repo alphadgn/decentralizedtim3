@@ -1285,6 +1285,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Distributed audit log report endpoint (super-admin only) ──
+    if (path === "/api/security/distributed-audit") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const report = await generateDistributedAuditReport();
+      return new Response(JSON.stringify(report), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Super-admin security scan endpoints ──
     if (path === "/api/security/chain-integrity" || path === "/api/security/daily-scans") {
       const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
