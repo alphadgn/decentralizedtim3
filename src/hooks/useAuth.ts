@@ -45,13 +45,19 @@ export function useAuth() {
       console.error("Failed to get access token:", e);
     }
 
+    // If no valid Privy token, treat as unauthenticated (avoids sending anon key as Bearer)
+    if (!accessToken) {
+      setState((prev) => ({ ...prev, role: null, loading: false, userId: null, unauthorized: false }));
+      return;
+    }
+
     // Step 1: Check if email is approved via edge function
     // The server determines admin exemptions — no client-side checks needed
     const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
       "sync-privy-user",
       {
         body: { email, action: "check_approval" },
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
@@ -79,17 +85,10 @@ export function useAuth() {
     // Step 2: Approved — sync profile & role
     const userId = await emailToUuid(email);
 
-    // Always invoke sync to ensure role enforcement
-    let accessToken2: string | null = null;
-    try {
-      accessToken2 = await getAccessToken();
-    } catch (e) {
-      console.error("Failed to get access token for sync:", e);
-    }
-
+    // Reuse token (still valid within this call) for sync
     const { data: syncData } = await supabase.functions.invoke("sync-privy-user", {
       body: { email, userId },
-      headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     // Use role returned from the server — the server enforces super_admin status
