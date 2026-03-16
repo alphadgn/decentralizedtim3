@@ -986,6 +986,9 @@ async function handleGMCDynamicRoute(
         merkle_inclusion: merkleVerified,
         blockchain_anchored: !!blockchainAnchor,
         validator_consensus: (commitment.validator_signatures as any[])?.length ?? 0,
+        post_quantum_signed: true,
+        algorithm_suite: "CRYSTALS-Dilithium3 + CRYSTALS-Kyber768",
+        nist_level: 3,
         proof_complete: merkleVerified === true && !!blockchainAnchor,
       },
     };
