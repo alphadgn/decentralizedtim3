@@ -378,6 +378,71 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_commitments: {
+        Row: {
+          api_key_id: string | null
+          blockchain_anchor_ref: string | null
+          canonical_timestamp: number
+          client_signature: string
+          created_at: string
+          event_hash: string
+          exchange_id: string
+          id: string
+          merkle_proof: string | null
+          nonce: string
+          ordering_hash: string
+          sequence_number: number
+          status: string
+          trade_hash: string
+          trade_id: string
+          validator_signatures: Json
+        }
+        Insert: {
+          api_key_id?: string | null
+          blockchain_anchor_ref?: string | null
+          canonical_timestamp: number
+          client_signature: string
+          created_at?: string
+          event_hash: string
+          exchange_id: string
+          id?: string
+          merkle_proof?: string | null
+          nonce: string
+          ordering_hash: string
+          sequence_number: number
+          status?: string
+          trade_hash: string
+          trade_id: string
+          validator_signatures?: Json
+        }
+        Update: {
+          api_key_id?: string | null
+          blockchain_anchor_ref?: string | null
+          canonical_timestamp?: number
+          client_signature?: string
+          created_at?: string
+          event_hash?: string
+          exchange_id?: string
+          id?: string
+          merkle_proof?: string | null
+          nonce?: string
+          ordering_hash?: string
+          sequence_number?: number
+          status?: string
+          trade_hash?: string
+          trade_id?: string
+          validator_signatures?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_commitments_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trade_events: {
         Row: {
           api_key_id: string | null
@@ -421,6 +486,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      used_nonces: {
+        Row: {
+          created_at: string
+          exchange_id: string
+          id: string
+          nonce_hash: string
+        }
+        Insert: {
+          created_at?: string
+          exchange_id: string
+          id?: string
+          nonce_hash: string
+        }
+        Update: {
+          created_at?: string
+          exchange_id?: string
+          id?: string
+          nonce_hash?: string
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -584,6 +670,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      nextval_gmc_seq: { Args: never; Returns: number }
       nextval_trade_seq: { Args: never; Returns: number }
       run_hourly_chain_integrity_scan: { Args: never; Returns: Json }
     }
