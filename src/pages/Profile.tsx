@@ -200,7 +200,7 @@ export default function Profile() {
           Back to Dashboard
         </button>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
           <h1 className="text-2xl font-mono font-bold text-foreground mb-2">Profile & Settings</h1>
           <p className="text-sm font-mono text-muted-foreground">Manage your account and preferences</p>
         </motion.div>
