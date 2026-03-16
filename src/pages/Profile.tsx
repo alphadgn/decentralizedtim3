@@ -93,7 +93,7 @@ export default function Profile() {
   const togglePref = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: boolean }) => {
       if (!userId) throw new Error("Not authenticated");
-      await invokeProfileApi({ action: "toggle_preference", userId, key, value });
+      await invokeProfileApi({ action: "toggle_preference", userId, email: authEmail, key, value });
       setPrefs((prev) => ({ ...prev, [key]: value }));
     },
     onSuccess: (_, { key, value }) => {
