@@ -156,7 +156,7 @@ const GMC_API_ENDPOINTS = [
 export default function EnterpriseTrading() {
   const { user, loading } = useAuth();
   const { epoch, signalBand } = useNetworkTime();
-  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "merkle" | "pq-crypto" | "gmc-api">("ordering");
+  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "merkle" | "pq-crypto" | "hw-rot" | "formal-verify" | "gmc-api">("ordering");
   const [tradeEvents, setTradeEvents] = useState(generateTradeEvents(epoch));
 
   useEffect(() => {
