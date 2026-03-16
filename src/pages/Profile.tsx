@@ -35,8 +35,8 @@ export default function Profile() {
   // Use edge function for profile data
   const { data: profile } = useQuery({
     queryKey: ["my-profile", userId],
-    queryFn: () => invokeProfileApi({ action: "get_profile", userId }).then((d) => d?.profile),
-    enabled: !!userId,
+    queryFn: () => invokeProfileApi({ action: "get_profile", userId, email: authEmail }).then((d) => d?.profile),
+    enabled: !!userId && !!authEmail,
   });
 
   const { data: myNodes = [] } = useQuery({
