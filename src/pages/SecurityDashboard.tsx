@@ -241,6 +241,9 @@ export default function SecurityDashboard() {
     (ip) => ip.blocked_until && new Date(ip.blocked_until) > new Date()
   ).length;
 
+  const latestSyncMs = Math.max(logsUpdatedAt ?? 0, blockedIpsUpdatedAt ?? 0, dailyScansUpdatedAt ?? 0);
+  const lastScanSyncLabel = latestSyncMs > 0 ? new Date(latestSyncMs).toLocaleString() : "Waiting for first sync…";
+
   const filteredLogs = combinedLogs.filter((log) => {
     if (severityFilter !== "all" && log.severity !== severityFilter) return false;
 
