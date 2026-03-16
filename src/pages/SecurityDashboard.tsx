@@ -86,6 +86,7 @@ export default function SecurityDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoScans, setAutoScans] = useState<AutoScanResult[]>(loadStoredScans);
+  const [isRunningManualScan, setIsRunningManualScan] = useState(false);
   const autoScanTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Security logs
