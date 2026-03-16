@@ -86,6 +86,7 @@ export default function SecurityDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoScans, setAutoScans] = useState<AutoScanResult[]>(loadStoredScans);
+  const [isRunningManualScan, setIsRunningManualScan] = useState(false);
   const autoScanTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Security logs
@@ -505,18 +506,30 @@ export default function SecurityDashboard() {
 
         {/* Automated Security Scans (every 8 hours) */}
         {isSuperAdmin && (
-          <div className="glass-panel p-6 border border-primary/20">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-mono uppercase tracking-widest text-primary flex items-center gap-2">
-                <Shield className="w-4 h-4" /> Automated Security Scans ({autoScans.length})
+          <div className="glass-panel p-4 sm:p-6 border border-primary/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <h2 className="text-xs sm:text-sm font-mono uppercase tracking-widest text-primary flex items-center gap-2">
+                <Shield className="w-4 h-4 shrink-0" /> Automated Scans ({autoScans.length})
               </h2>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono text-muted-foreground">Every 8h</span>
                 <button
-                  onClick={runAutoScan}
-                  className="text-[10px] font-mono px-2 py-1 bg-secondary text-foreground rounded hover:bg-secondary/80 transition-colors"
+                  onClick={async () => {
+                    setIsRunningManualScan(true);
+                    try {
+                      await runAutoScan();
+                      toast.success("Manual security scan completed");
+                    } catch {
+                      toast.error("Manual scan failed");
+                    } finally {
+                      setIsRunningManualScan(false);
+                    }
+                  }}
+                  disabled={isRunningManualScan}
+                  className="text-[10px] font-mono px-2 py-1 bg-secondary text-foreground rounded hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-1"
                 >
-                  Run Now
+                  <RefreshCw className={`w-3 h-3 ${isRunningManualScan ? "animate-spin" : ""}`} />
+                  {isRunningManualScan ? "Scanning…" : "Run Now"}
                 </button>
               </div>
             </div>
@@ -525,14 +538,14 @@ export default function SecurityDashboard() {
               <p className="text-xs font-mono text-muted-foreground">No automated scans yet — first scan will run shortly</p>
             ) : (
               <ScrollArea className="h-[400px]">
-                <div className="space-y-3 pr-3">
+                <div className="space-y-3 pr-1 sm:pr-3">
                   {autoScans.map((scan) => (
                     <div key={scan.id} className="bg-secondary/50 rounded-lg p-3 border border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-mono text-muted-foreground">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                           {new Date(scan.ran_at).toLocaleString()}
                         </span>
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
                           scan.scans.some((s) => s.status === "fail")
                             ? "bg-destructive/20 text-destructive"
                             : scan.scans.some((s) => s.status === "warn")
@@ -540,10 +553,10 @@ export default function SecurityDashboard() {
                             : "bg-accent/20 text-accent"
                         }`}>
                           {scan.scans.some((s) => s.status === "fail")
-                            ? "FAILURES"
+                            ? "FAIL"
                             : scan.scans.some((s) => s.status === "warn")
-                            ? "WARNINGS"
-                            : "ALL PASS"}
+                            ? "WARN"
+                            : "PASS"}
                         </span>
                       </div>
                       <div className="space-y-1.5">
@@ -551,10 +564,10 @@ export default function SecurityDashboard() {
                           <div key={check.id} className="flex items-start gap-2">
                             <span className="text-xs shrink-0">{scanStatusIcon(check.status)}</span>
                             <div className="flex-1 min-w-0">
-                              <span className={`text-[10px] font-mono font-semibold ${scanStatusColor(check.status)}`}>
+                              <span className={`text-[10px] font-mono font-semibold ${scanStatusColor(check.status)} break-all`}>
                                 {check.label}
                               </span>
-                              <p className="text-[10px] font-mono text-muted-foreground truncate">
+                              <p className="text-[10px] font-mono text-muted-foreground break-words">
                                 {check.summary}
                               </p>
                             </div>
