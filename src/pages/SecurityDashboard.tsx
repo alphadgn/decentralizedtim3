@@ -136,7 +136,11 @@ export default function SecurityDashboard() {
   });
 
   // Daily security scans (3 checks) surfaced inside Security Logs
-  const { data: dailyScanLogs = [], refetch: refetchDailyScans } = useQuery({
+  const {
+    data: dailyScanLogs = [],
+    refetch: refetchDailyScans,
+    dataUpdatedAt: dailyScansUpdatedAt,
+  } = useQuery({
     queryKey: ["security-daily-scans", userId],
     enabled: isSuperAdmin && !!userId,
     refetchInterval: 60_000,
