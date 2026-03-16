@@ -6,8 +6,6 @@ import { extractPrivyEmail } from "@/lib/privy";
 
 type AppRole = Enums<"app_role">;
 
-const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
-
 interface AuthState {
   role: AppRole | null;
   loading: boolean;
@@ -39,8 +37,6 @@ export function useAuth() {
       return;
     }
 
-    const isSuperAdminEmail = email.toLowerCase() === SUPER_ADMIN_EMAIL;
-
     // Get Privy access token for authenticated requests
     let accessToken: string | null = null;
     try {
@@ -50,63 +46,54 @@ export function useAuth() {
     }
 
     // Step 1: Check if email is approved via edge function
-    // Super admin is ALWAYS exempt — skip approval check entirely
-    if (!isSuperAdminEmail) {
-      const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
-        "sync-privy-user",
-        {
-          body: { email, action: "check_approval" },
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-        }
-      );
-
-      if (approvalError || !approvalData?.approved) {
-        const attempts = approvalData?.attempts ?? 1;
-        const isBlocked = approvalData?.blocked ?? attempts >= 2;
-
-        if (isBlocked) {
-          localStorage.setItem(BLOCKED_KEY, "true");
-        }
-
-        await logout();
-
-        setState({
-          role: null,
-          loading: false,
-          userId: null,
-          blocked: isBlocked,
-          unauthorized: true,
-          attemptCount: attempts,
-        });
-        return;
+    // The server determines admin exemptions — no client-side checks needed
+    const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
+      "sync-privy-user",
+      {
+        body: { email, action: "check_approval" },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       }
+    );
+
+    if (approvalError || !approvalData?.approved) {
+      const attempts = approvalData?.attempts ?? 1;
+      const isBlocked = approvalData?.blocked ?? attempts >= 2;
+
+      if (isBlocked) {
+        localStorage.setItem(BLOCKED_KEY, "true");
+      }
+
+      await logout();
+
+      setState({
+        role: null,
+        loading: false,
+        userId: null,
+        blocked: isBlocked,
+        unauthorized: true,
+        attemptCount: attempts,
+      });
+      return;
     }
 
     // Step 2: Approved — sync profile & role
     const userId = await emailToUuid(email);
-    const SUPER_ADMIN_USER_ID = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
- 
-    // Always invoke sync to ensure role enforcement (especially super_admin)
+
+    // Always invoke sync to ensure role enforcement
     let accessToken2: string | null = null;
     try {
       accessToken2 = await getAccessToken();
     } catch (e) {
       console.error("Failed to get access token for sync:", e);
     }
- 
-    const { data: syncData, error: syncError } = await supabase.functions.invoke("sync-privy-user", {
+
+    const { data: syncData } = await supabase.functions.invoke("sync-privy-user", {
       body: { email, userId },
       headers: accessToken2 ? { Authorization: `Bearer ${accessToken2}` } : {},
     });
- 
-    // Use role returned directly from edge function (avoids RLS blocking)
-    let syncedRole = syncData?.role ?? null;
- 
-    // CRITICAL: If this is the super admin account, ALWAYS force super_admin
-    // regardless of what the edge function returned (covers sync failures, stale data, etc.)
-    if (isSuperAdminEmail || userId === SUPER_ADMIN_USER_ID) {
-      syncedRole = "super_admin";
-    }
+
+    // Use role returned from the server — the server enforces super_admin status
+    const syncedRole = syncData?.role ?? null;
 
     setState({
       role: syncedRole,
