@@ -6,6 +6,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
+const AUTH_REDIRECT_ORIGIN = "http://defitime.io";
+const PRIVY_ALLOWED_ORIGINS = new Set([
+  "http://defitime.io",
+  "https://decentralizedtim3.lovable.app",
+  "https://www.decentralizedtim3.lovable.app",
+  "https://604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
+  "https://www.604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
+]);
+
 export function Header() {
   const { user, isAdmin, isSuperAdmin, isAuditor, isSupport, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
   const navigate = useNavigate();
@@ -22,31 +31,19 @@ export function Header() {
   };
 
   const handleSignIn = async () => {
-    // Detect if current domain is NOT in Privy's allowed origins
-    const hostname = window.location.hostname;
-    const isAllowedOrigin =
-      hostname === "defitime.io" ||
-      hostname.endsWith(".lovable.app") ||
-      hostname.endsWith(".lovableproject.com");
+    const currentOrigin = window.location.origin;
 
-    if (!isAllowedOrigin) {
-      // Redirect to primary domain for auth
-      window.location.href = "https://defitime.io";
-      return;
-    }
-
-    // If on preview domain, redirect to production domain for sign-in
-    if (
-      hostname.includes("id-preview--") &&
-      !hostname.includes("decentralizedtim3")
-    ) {
-      window.location.href = "https://defitime.io";
+    // Privy validates exact origins (scheme + host), not just hostnames.
+    if (!PRIVY_ALLOWED_ORIGINS.has(currentOrigin)) {
+      const redirectPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.location.href = new URL(redirectPath, AUTH_REDIRECT_ORIGIN).toString();
       return;
     }
 
     try {
       await login();
-    } catch {
+    } catch (error) {
+      console.error("Privy sign-in failed", error);
       toast.error("Sign-in failed — please try again.");
     } finally {
       setMenuOpen(false);
