@@ -784,6 +784,11 @@ async function executeGMCEngine(
       edgeRuntime.waitUntil(merkleAnchorPromise);
     }
 
+    // Phase 12: Zero-trust validation for this request
+    const zeroTrustResult = await validateZeroTrustRequest(
+      "api-gateway", "gmc-engine", "POST", "/api/gmc/commit_trade"
+    );
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
@@ -817,6 +822,15 @@ async function executeGMCEngine(
           quantum_resistant: a.quantum_resistant,
           signature_size_bytes: a.dilithium_signature.signature_size_bytes,
         })),
+      },
+      zero_trust: {
+        mtls_verified: zeroTrustResult.mtls_handshake.mutual_authenticated,
+        certificate_pinned: zeroTrustResult.mtls_handshake.pin_verified,
+        cipher_suite: zeroTrustResult.mtls_handshake.cipher_suite,
+        protocol_version: zeroTrustResult.mtls_handshake.protocol_version,
+        service_mesh_authorized: zeroTrustResult.authorization.authorized,
+        policy_matched: zeroTrustResult.authorization.policy_matched,
+        zero_trust_verified: zeroTrustResult.zero_trust_verified,
       },
     };
   }
