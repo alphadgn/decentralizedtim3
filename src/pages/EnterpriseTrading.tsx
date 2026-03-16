@@ -7,10 +7,10 @@ import { useNetworkTime } from "@/hooks/useNetworkTime";
 import { Navigate } from "react-router-dom";
 import {
   ArrowUpDown, Shield, Activity, FileCheck, Clock,
-  TrendingUp, AlertTriangle, CheckCircle, Lock,
+  TrendingUp, AlertTriangle, CheckCircle, Lock, Globe, Code,
 } from "lucide-react";
 
-// ── Mock trade events ──────────────────────────────────────────────
+// ── Mock trade events ──
 function generateTradeEvents(epoch: number) {
   const exchanges = ["NYSE", "NASDAQ", "LSE", "TSE", "HKEX"];
   const pairs = ["BTC/USD", "ETH/USD", "SPY", "AAPL", "EUR/USD"];
@@ -25,7 +25,6 @@ function generateTradeEvents(epoch: number) {
   }));
 }
 
-// ── MEV status mock ────────────────────────────────────────────────
 const MEV_COMMITS = [
   { id: "cmt-9a3b7c", exchange: "NYSE", status: "verified", latency: "12ms" },
   { id: "cmt-4d5e6f", exchange: "NASDAQ", status: "verified", latency: "8ms" },
@@ -34,7 +33,6 @@ const MEV_COMMITS = [
   { id: "cmt-0m1n2o", exchange: "HKEX", status: "verified", latency: "15ms" },
 ];
 
-// ── Latency fairness mock ──────────────────────────────────────────
 const LATENCY_DATA = [
   { exchange: "NYSE", avgLatency: "4.2ms", p99: "12ms", fairness: 98.7, anomalies: 0 },
   { exchange: "NASDAQ", avgLatency: "3.8ms", p99: "9ms", fairness: 99.1, anomalies: 0 },
@@ -43,10 +41,74 @@ const LATENCY_DATA = [
   { exchange: "HKEX", avgLatency: "19.7ms", p99: "38ms", fairness: 97.4, anomalies: 0 },
 ];
 
+const GMC_API_ENDPOINTS = [
+  {
+    method: "POST",
+    path: "/api/gmc/commit_trade",
+    description: "Submit a trade commitment with cryptographic proof",
+    body: `{
+  "exchange_id": "NYSE",
+  "trade_id": "TRD-2026-001",
+  "trade_hash": "sha256(trade_payload)",
+  "client_signature": "0x...",
+  "nonce": "unique-nonce-value"
+}`,
+    response: `{
+  "event_hash": "a1b2c3...",
+  "sequence_number": 1,
+  "canonical_timestamp": 1773456789000,
+  "ordering_hash": "d4e5f6...",
+  "validator_signatures": [...],
+  "status": "committed"
+}`,
+  },
+  {
+    method: "POST",
+    path: "/api/gmc/verify_timestamp",
+    description: "Verify a previously committed trade timestamp",
+    body: `{
+  "event_hash": "a1b2c3...",
+  "timestamp": 1773456789000
+}`,
+    response: `{
+  "verified": true,
+  "integrity_valid": true,
+  "timestamp_match": true,
+  "validator_count": 4
+}`,
+  },
+  {
+    method: "GET",
+    path: "/api/gmc/event_proof/{event_hash}",
+    description: "Retrieve full verification bundle for an event",
+    body: null,
+    response: `{
+  "event_hash": "a1b2c3...",
+  "validator_signatures": [...],
+  "verification_proof": "...",
+  "merkle_proof": "pending_merkle_batch",
+  "blockchain_anchor_ref": "pending_anchor"
+}`,
+  },
+  {
+    method: "GET",
+    path: "/api/gmc/ledger_block/{batch_id}",
+    description: "Query deterministically ordered event batches",
+    body: null,
+    response: `{
+  "batch_id": "latest",
+  "batch_hash": "...",
+  "event_count": 50,
+  "merkle_root": "...",
+  "events": [...]
+}`,
+  },
+];
+
 export default function EnterpriseTrading() {
   const { user, loading } = useAuth();
   const { epoch, signalBand } = useNetworkTime();
-  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements">("ordering");
+  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "gmc-api">("ordering");
   const [tradeEvents, setTradeEvents] = useState(generateTradeEvents(epoch));
 
   useEffect(() => {
@@ -60,6 +122,7 @@ export default function EnterpriseTrading() {
     { id: "mev" as const, label: "MEV Protection", icon: Shield },
     { id: "latency" as const, label: "Latency Fairness", icon: Activity },
     { id: "settlements" as const, label: "Settlements", icon: FileCheck },
+    { id: "gmc-api" as const, label: "GMC API", icon: Globe },
   ];
 
   return (
@@ -68,12 +131,12 @@ export default function EnterpriseTrading() {
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-6">
         <BackToDashboard />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-mono font-bold text-foreground">Enterprise Trading</h1>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <h1 className="text-2xl font-mono font-bold text-foreground text-center">Enterprise Trading</h1>
             <span className="bg-primary/20 text-primary text-[10px] font-mono font-bold px-2 py-0.5 rounded">LIVE</span>
           </div>
-          <p className="text-sm font-mono text-muted-foreground">
-            Deterministic trade ordering, MEV protection, and settlement proofs
+          <p className="text-sm font-mono text-muted-foreground text-center">
+            Global Market Clock — Deterministic trade ordering, MEV protection, and settlement proofs
           </p>
         </motion.div>
 
@@ -117,6 +180,9 @@ export default function EnterpriseTrading() {
             <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
               Global Trade Event Ordering — Live Feed
             </h2>
+            <p className="text-xs font-mono text-muted-foreground mb-4">
+              Events ordered deterministically: consensus timestamp → event hash → validator consensus
+            </p>
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
@@ -241,30 +307,9 @@ export default function EnterpriseTrading() {
               </p>
             </div>
             {[
-              {
-                id: "STL-948271039",
-                timestamp: epoch - 3000,
-                seqNum: 948271039,
-                exchange: "NYSE",
-                chain: "Ethereum",
-                block: 19421042,
-              },
-              {
-                id: "STL-948271038",
-                timestamp: epoch - 33000,
-                seqNum: 948271038,
-                exchange: "NASDAQ",
-                chain: "Ethereum",
-                block: 19421040,
-              },
-              {
-                id: "STL-948271037",
-                timestamp: epoch - 63000,
-                seqNum: 948271037,
-                exchange: "LSE",
-                chain: "Polygon",
-                block: 54210012,
-              },
+              { id: "STL-948271039", timestamp: epoch - 3000, seqNum: 948271039, exchange: "NYSE", chain: "Ethereum", block: 19421042 },
+              { id: "STL-948271038", timestamp: epoch - 33000, seqNum: 948271038, exchange: "NASDAQ", chain: "Ethereum", block: 19421040 },
+              { id: "STL-948271037", timestamp: epoch - 63000, seqNum: 948271037, exchange: "LSE", chain: "Polygon", block: 54210012 },
             ].map((s) => (
               <div key={s.id} className="glass-panel p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -299,6 +344,68 @@ export default function EnterpriseTrading() {
                     <div className="text-muted-foreground">Proof Hash</div>
                     <div className="text-muted-foreground">0x{Math.random().toString(16).slice(2, 10)}...</div>
                   </div>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* GMC API Reference */}
+        {activeTab === "gmc-api" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Globe className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Global Market Clock API
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Cryptographically verifiable trade ordering endpoints. All requests require an Enterprise API key with HMAC-SHA256 request signing.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Nonce Replay Protection", icon: Shield },
+                  { label: "BFT Consensus Timestamp", icon: Clock },
+                  { label: "Multi-Validator Signing", icon: CheckCircle },
+                  { label: "Deterministic Ordering", icon: ArrowUpDown },
+                ].map((f) => (
+                  <div key={f.label} className="bg-secondary/40 rounded-lg p-3 flex items-center gap-2">
+                    <f.icon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                    <span className="text-[10px] font-mono text-foreground">{f.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-secondary/30 rounded-lg p-3 text-[10px] font-mono text-muted-foreground">
+                <span className="text-primary">Ordering Rule:</span>{" "}
+                consensus_timestamp → ordering_hash → sequence_number
+              </div>
+            </div>
+
+            {GMC_API_ENDPOINTS.map((ep) => (
+              <div key={ep.path} className="glass-panel p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                    ep.method === "POST" ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"
+                  }`}>
+                    {ep.method}
+                  </span>
+                  <code className="text-xs font-mono text-foreground">{ep.path}</code>
+                </div>
+                <p className="text-xs font-mono text-muted-foreground mb-3">{ep.description}</p>
+                {ep.body && (
+                  <div className="mb-3">
+                    <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Request Body</div>
+                    <pre className="bg-secondary/40 rounded-lg p-3 text-[10px] font-mono text-foreground overflow-x-auto">
+                      {ep.body}
+                    </pre>
+                  </div>
+                )}
+                <div>
+                  <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Response</div>
+                  <pre className="bg-secondary/40 rounded-lg p-3 text-[10px] font-mono text-accent overflow-x-auto">
+                    {ep.response}
+                  </pre>
                 </div>
               </div>
             ))}
