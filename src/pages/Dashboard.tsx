@@ -39,6 +39,9 @@ function generateLogs() {
   });
 }
 
+const SUPPORT_EMAIL = "decentralizedtim3@gmail.com";
+const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}`;
+
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
