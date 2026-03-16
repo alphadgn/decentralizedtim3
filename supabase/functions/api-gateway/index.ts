@@ -804,6 +804,19 @@ async function executeGMCEngine(
         ordering_method: latencyResult.ordering_method,
         geographic_distribution: latencyResult.geographic_distribution,
       },
+      post_quantum: {
+        algorithm: "CRYSTALS-Dilithium3",
+        key_encapsulation: "CRYSTALS-Kyber768",
+        nist_level: 3,
+        attestation_count: pqAttestations.length,
+        attestations: pqAttestations.map((a) => ({
+          attestation_id: a.attestation_id,
+          validator_id: a.validator_id,
+          algorithm_suite: a.algorithm_suite,
+          quantum_resistant: a.quantum_resistant,
+          signature_size_bytes: a.dilithium_signature.signature_size_bytes,
+        })),
+      },
     };
   }
 
