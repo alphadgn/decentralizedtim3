@@ -87,6 +87,18 @@ const GMC_API_ENDPOINTS = [
     "nist_level": 3,
     "attestation_count": 13
   },
+  "hardware_root_of_trust": {
+    "trust_chain_verified": true,
+    "root_type": "TPM",
+    "hsm_signing": { "algorithm": "ECDSA-P384" },
+    "enclave": { "technology": "Intel SGX", "tcb_status": "UpToDate" },
+    "fips_140_3_level": 3
+  },
+  "formal_verification": {
+    "all_properties_hold": true,
+    "verified_properties": 15,
+    "invariants_holding": 8
+  },
   "status": "committed"
 }`,
   },
