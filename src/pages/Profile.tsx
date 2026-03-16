@@ -158,7 +158,7 @@ export default function Profile() {
   };
 
   const updateProfile = useMutation({
-    mutationFn: () => invokeProfileApi({ action: "update_profile", userId, display_name: displayName, avatar_url: avatarUrl || null }),
+    mutationFn: () => invokeProfileApi({ action: "update_profile", userId, email: authEmail, display_name: displayName, avatar_url: avatarUrl || null }),
     onSuccess: () => {
       toast.success("Profile updated");
       queryClient.invalidateQueries({ queryKey: ["my-profile"] });
