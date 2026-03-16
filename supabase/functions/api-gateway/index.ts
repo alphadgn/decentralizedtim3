@@ -1234,6 +1234,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Hardware root of trust audit endpoint (super-admin only) ──
+    if (path === "/api/security/hardware-audit") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const audit = await generateHardwareAudit();
+      return new Response(JSON.stringify(audit), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Super-admin security scan endpoints ──
     if (path === "/api/security/chain-integrity" || path === "/api/security/daily-scans") {
       const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
