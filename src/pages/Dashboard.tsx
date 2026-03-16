@@ -53,7 +53,7 @@ function CopyBtn({ text }: { text: string }) {
 }
 
 export default function Dashboard() {
-  const { user, userId, loading, getAccessToken } = useAuth();
+  const { user, userId, email: authEmail, loading, getAccessToken } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"usage" | "logs" | "keys" | "billing" | "integrations">("usage");
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
