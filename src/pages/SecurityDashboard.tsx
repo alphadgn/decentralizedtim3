@@ -82,7 +82,11 @@ export default function SecurityDashboard() {
   });
 
   // Blocked IPs
-  const { data: blockedIps = [], refetch: refetchIps } = useQuery({
+  const {
+    data: blockedIps = [],
+    refetch: refetchIps,
+    dataUpdatedAt: blockedIpsUpdatedAt,
+  } = useQuery({
     queryKey: ["blocked-ips"],
     queryFn: async () => {
       const { data, error } = await supabase
