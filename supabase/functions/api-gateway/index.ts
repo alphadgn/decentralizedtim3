@@ -298,6 +298,8 @@ const SERVICE_MAP: Record<string, string> = {
   "/api/order": "order-engine",
   "/api/anchors": "signal-engine",
   "/api/anchors/status": "signal-engine",
+  "/api/gmc/commit_trade": "gmc-engine",
+  "/api/gmc/verify_timestamp": "gmc-engine",
 };
 
 async function routeToService(
