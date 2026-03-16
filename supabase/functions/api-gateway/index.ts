@@ -800,6 +800,13 @@ async function executeGMCEngine(
       eventHash, sequenceNumber, canonicalTimestamp, validatorSignatures.length
     );
 
+    // Phase 15: Distributed audit logging with witness co-signatures
+    const auditLog = await createAuditLogEntry(
+      "trade_commitment",
+      eventHash,
+      { trade_id, exchange_id, sequence_number: sequenceNumber, validator_count: validatorSignatures.length }
+    );
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
