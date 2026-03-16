@@ -484,7 +484,7 @@ export default function SecurityDashboard() {
           ) : filteredLogs.length === 0 ? (
             <p className="text-xs font-mono text-muted-foreground">No security events found</p>
           ) : (
-            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[540px] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
