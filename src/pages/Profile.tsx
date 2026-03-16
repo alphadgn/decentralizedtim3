@@ -70,8 +70,8 @@ export default function Profile() {
   // Preferences via edge function
   const { data: preferences } = useQuery({
     queryKey: ["user-preferences", userId],
-    queryFn: () => invokeProfileApi({ action: "get_preferences", userId }).then((d) => d?.preferences),
-    enabled: !!userId,
+    queryFn: () => invokeProfileApi({ action: "get_preferences", userId, email: authEmail }).then((d) => d?.preferences),
+    enabled: !!userId && !!authEmail,
   });
 
   const [prefs, setPrefs] = useState({
