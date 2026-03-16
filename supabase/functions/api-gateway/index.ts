@@ -7,6 +7,7 @@ import { buildMerkleTree, verifyMerkleProof } from "../_shared/merkle-tree.ts";
 import { computeLatencyNeutralTimestamp } from "../_shared/latency-neutral.ts";
 import { batchPostQuantumSign } from "../_shared/post-quantum.ts";
 import { validateZeroTrustRequest, generateZeroTrustAudit } from "../_shared/zero-trust.ts";
+import { buildTrustChain, generateHardwareAudit } from "../_shared/hardware-root-of-trust.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
