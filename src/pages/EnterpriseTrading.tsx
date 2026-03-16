@@ -171,6 +171,8 @@ export default function EnterpriseTrading() {
     { id: "latency" as const, label: "Latency Fairness", icon: Activity },
     { id: "merkle" as const, label: "Merkle Ledger", icon: GitBranch },
     { id: "pq-crypto" as const, label: "Post-Quantum", icon: Fingerprint },
+    { id: "hw-rot" as const, label: "Hardware RoT", icon: HardDrive },
+    { id: "formal-verify" as const, label: "Formal Proofs", icon: BookOpen },
     { id: "settlements" as const, label: "Settlements", icon: FileCheck },
     { id: "gmc-api" as const, label: "GMC API", icon: Globe },
   ];
