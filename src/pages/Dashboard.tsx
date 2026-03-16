@@ -87,7 +87,7 @@ export default function Dashboard() {
       if (!userId) return [];
       const token = await getAccessToken();
       const { data, error } = await supabase.functions.invoke("profile-api", {
-        body: { action: "get_profile", userId },
+        body: { action: "get_profile", userId, email: authEmail },
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       // Fetch keys via direct query (service role reads via profile-api don't have a list action yet)
