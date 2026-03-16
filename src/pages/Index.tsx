@@ -1,4 +1,3 @@
-import type { MouseEvent } from "react";
 import { Header } from "@/components/Header";
 import { GlobalClock } from "@/components/GlobalClock";
 import { NetworkMap } from "@/components/NetworkMap";
@@ -10,11 +9,6 @@ import { SyncIndicator } from "@/components/SyncIndicator";
 const SUPPORT_EMAIL = "decentralizedtim3@gmail.com";
 
 const Index = () => {
-  const handleSupportEmailClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    window.location.href = `mailto:${SUPPORT_EMAIL}`;
-  };
-
   return (
     <div className="min-h-screen bg-background grid-bg">
       <Header />
@@ -46,7 +40,6 @@ const Index = () => {
             Support:{" "}
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              onClick={handleSupportEmailClick}
               className="inline-flex items-center py-1 text-primary hover:underline"
               aria-label="Email DGTN support"
             >

@@ -197,8 +197,8 @@ export default function SuperAdmin() {
       <Header />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-6">
         <BackToDashboard />
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-2 mb-2">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
             <ShieldAlert className="w-5 h-5 text-destructive" />
             <h1 className="text-2xl font-mono font-bold text-foreground">Super Admin</h1>
           </div>
