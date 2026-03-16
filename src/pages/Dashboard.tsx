@@ -141,7 +141,7 @@ export default function Dashboard() {
   const revokeKey = useMutation({
     mutationFn: async (keyId: string) => {
       if (!userId) throw new Error("Not authenticated");
-      return invokeProfileApi({ action: "revoke_api_key", userId, keyId });
+      return invokeProfileApi({ action: "revoke_api_key", userId, email: authEmail, keyId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard-api-keys"] });
