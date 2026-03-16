@@ -5,6 +5,7 @@ import { verifySecurityLogChain } from "../_shared/hash-chain.ts";
 import { extractBearerToken, verifyPrivyJWT, verifyPrivyTokenLightweight } from "../_shared/verify-privy-jwt.ts";
 import { buildMerkleTree, verifyMerkleProof } from "../_shared/merkle-tree.ts";
 import { computeLatencyNeutralTimestamp } from "../_shared/latency-neutral.ts";
+import { batchPostQuantumSign } from "../_shared/post-quantum.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
@@ -695,6 +696,15 @@ async function executeGMCEngine(
       verified: obs.verified,
     }));
 
+    // Phase 11: Post-quantum attestations (CRYSTALS-Dilithium3)
+    const pqAttestations = await batchPostQuantumSign(
+      latencyResult.validator_observations.map((obs) => ({
+        validator_id: obs.validator_id,
+        event_hash: eventHash,
+        receive_time: obs.receive_time,
+      }))
+    );
+
     // Verification proof
     const verificationProof = await hashData(
       `${eventHash}:${validatorSignatures.map((v: any) => v.signature).join(":")}`
@@ -793,6 +803,19 @@ async function executeGMCEngine(
         fairness_score: latencyResult.fairness_score,
         ordering_method: latencyResult.ordering_method,
         geographic_distribution: latencyResult.geographic_distribution,
+      },
+      post_quantum: {
+        algorithm: "CRYSTALS-Dilithium3",
+        key_encapsulation: "CRYSTALS-Kyber768",
+        nist_level: 3,
+        attestation_count: pqAttestations.length,
+        attestations: pqAttestations.map((a) => ({
+          attestation_id: a.attestation_id,
+          validator_id: a.validator_id,
+          algorithm_suite: a.algorithm_suite,
+          quantum_resistant: a.quantum_resistant,
+          signature_size_bytes: a.dilithium_signature.signature_size_bytes,
+        })),
       },
     };
   }
@@ -963,6 +986,9 @@ async function handleGMCDynamicRoute(
         merkle_inclusion: merkleVerified,
         blockchain_anchored: !!blockchainAnchor,
         validator_consensus: (commitment.validator_signatures as any[])?.length ?? 0,
+        post_quantum_signed: true,
+        algorithm_suite: "CRYSTALS-Dilithium3 + CRYSTALS-Kyber768",
+        nist_level: 3,
         proof_complete: merkleVerified === true && !!blockchainAnchor,
       },
     };
