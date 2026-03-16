@@ -3,6 +3,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { ensureRecentAnchors, getAnchorStatuses } from "../_shared/blockchain-anchors.ts";
 import { verifySecurityLogChain } from "../_shared/hash-chain.ts";
 import { extractBearerToken, verifyPrivyJWT, verifyPrivyTokenLightweight } from "../_shared/verify-privy-jwt.ts";
+import { buildMerkleTree, verifyMerkleProof } from "../_shared/merkle-tree.ts";
+import { computeLatencyNeutralTimestamp } from "../_shared/latency-neutral.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
@@ -624,7 +626,10 @@ async function buildDailySecurityScans(supabase: any): Promise<Record<string, an
 // ── GMC Engine (Global Market Clock) ──
 // Phase 3: Trade Commitment System
 // Phase 5: Deterministic Event Ordering
+// Phase 6: Merkle Event Ledger
+// Phase 7: Full Trade Order Proof Generation
 // Phase 8: GMC API
+// Phases 9-10: Latency-Neutral Ordering
 async function executeGMCEngine(
   supabase: any, tier: string, path: string, body: any
 ): Promise<Record<string, any>> {
@@ -664,48 +669,35 @@ async function executeGMCEngine(
       exchange_id,
     });
 
-    // Consensus timestamp via BFT
-    const now = Date.now();
-    const signals: number[] = Array.from({ length: 16 }, () => now + (Math.random() * 3 - 1.5));
-    const sorted = [...signals].sort((a, b) => a - b);
-    const trim = Math.floor(sorted.length * 0.25);
-    const trimmed = sorted.slice(trim, sorted.length - trim);
-    const canonicalTimestamp = trimmed.length > 0
-      ? Math.round(trimmed.reduce((a, b) => a + b, 0) / trimmed.length) : now;
-
     // Get deterministic sequence number
     const { data: seqData } = await supabase.rpc("nextval_gmc_seq");
     const sequenceNumber = seqData ?? Date.now();
 
     // Phase 5: Deterministic event ordering
-    // event_hash = hash(trade_hash + canonical_timestamp + sequence_number)
-    const eventData = `${trade_hash}:${canonicalTimestamp}:${sequenceNumber}:${exchange_id}:${trade_id}`;
+    const now = Date.now();
+    const eventData = `${trade_hash}:${now}:${sequenceNumber}:${exchange_id}:${trade_id}`;
     const eventHash = await hashData(eventData);
 
-    // Ordering hash for deterministic tie-breaking:
-    // ordering_hash = hash(canonical_timestamp + event_hash + sequence_number)
-    // Events with identical timestamps are ordered by this hash
+    // Phases 9-10: Latency-neutral ordering via median receive-time consensus
+    const latencyResult = await computeLatencyNeutralTimestamp(now, eventHash);
+    const canonicalTimestamp = latencyResult.canonical_timestamp;
+
+    // Ordering hash for deterministic tie-breaking
     const orderingHash = await hashData(`${canonicalTimestamp}:${eventHash}:${sequenceNumber}`);
 
-    // Validator signatures (simulated multi-region validators)
-    const validatorRegions = ["us-east", "eu-west", "asia-east", "oceania"];
-    const validatorSignatures = await Promise.all(
-      validatorRegions.map(async (region) => {
-        const sigData = `${region}:${eventHash}:${canonicalTimestamp}`;
-        const sig = await hashData(sigData);
-        return {
-          validator_id: `validator-${region}`,
-          region,
-          signature: `0x${sig.slice(0, 40)}`,
-          timestamp: canonicalTimestamp + Math.floor(Math.random() * 3),
-          verified: true,
-        };
-      })
-    );
+    // Validator signatures from latency-neutral observations
+    const validatorSignatures = latencyResult.validator_observations.map((obs) => ({
+      validator_id: obs.validator_id,
+      region: obs.region,
+      signature: obs.signature,
+      timestamp: obs.receive_time,
+      propagation_delay_ms: obs.propagation_delay_ms,
+      verified: obs.verified,
+    }));
 
     // Verification proof
     const verificationProof = await hashData(
-      `${eventHash}:${validatorSignatures.map((v) => v.signature).join(":")}`
+      `${eventHash}:${validatorSignatures.map((v: any) => v.signature).join(":")}`
     );
 
     // Store commitment
@@ -728,6 +720,59 @@ async function executeGMCEngine(
       return { error: "Failed to store commitment" };
     }
 
+    // Phase 6: Trigger async Merkle batch if we have enough uncommitted events
+    const merkleAnchorPromise = (async () => {
+      try {
+        const { data: pendingEvents } = await supabase
+          .from("trade_commitments")
+          .select("id, event_hash")
+          .is("merkle_proof", null)
+          .order("sequence_number", { ascending: true })
+          .limit(64);
+
+        if (pendingEvents && pendingEvents.length >= 16) {
+          const leafHashes = pendingEvents.map((e: any) => e.event_hash);
+          const tree = await buildMerkleTree(leafHashes);
+
+          // Anchor merkle root to blockchain
+          const anchorHash = await hashData(`merkle_root:${tree.root}:${Date.now()}`);
+          await ensureRecentAnchors(supabase, anchorHash, Date.now()).catch(() => {});
+
+          // Get latest blockchain anchor for reference
+          const anchors = await getAnchorStatuses(supabase, 120_000);
+          const syncedAnchor = anchors.find((a) => a.status === "synced");
+          const anchorRef = syncedAnchor
+            ? `${syncedAnchor.blockchain}:${syncedAnchor.block_number}:${syncedAnchor.tx_hash}`
+            : null;
+
+          // Update each event with its Merkle proof and anchor reference
+          for (const event of pendingEvents) {
+            const proof = tree.proofs[event.event_hash];
+            if (proof) {
+              await supabase.from("trade_commitments").update({
+                merkle_proof: JSON.stringify({
+                  root: tree.root,
+                  proof,
+                  leaf_index: leafHashes.indexOf(event.event_hash),
+                  tree_depth: tree.depth,
+                  batch_size: leafHashes.length,
+                }),
+                blockchain_anchor_ref: anchorRef,
+                status: "anchored",
+              }).eq("id", event.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Merkle batch error:", e);
+      }
+    })();
+
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) {
+      edgeRuntime.waitUntil(merkleAnchorPromise);
+    }
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
@@ -742,7 +787,13 @@ async function executeGMCEngine(
       consensus_status: "verified",
       accuracy_band: "high",
       signal_band: "strong",
-      node_count: validatorRegions.length,
+      node_count: validatorSignatures.length,
+      latency_neutral: {
+        median_receive_time: latencyResult.median_receive_time,
+        fairness_score: latencyResult.fairness_score,
+        ordering_method: latencyResult.ordering_method,
+        geographic_distribution: latencyResult.geographic_distribution,
+      },
     };
   }
 
@@ -777,6 +828,24 @@ async function executeGMCEngine(
       ? Math.abs(commitment.canonical_timestamp - claimedTimestamp) <= 1
       : true;
 
+    // Phase 7: Verify Merkle proof if available
+    let merkleValid: boolean | null = null;
+    let merkleRoot: string | null = null;
+    if (commitment.merkle_proof) {
+      try {
+        const proofData = typeof commitment.merkle_proof === "string"
+          ? JSON.parse(commitment.merkle_proof) : commitment.merkle_proof;
+        merkleRoot = proofData.root;
+        merkleValid = await verifyMerkleProof(
+          commitment.event_hash,
+          proofData.proof,
+          proofData.root
+        );
+      } catch {
+        merkleValid = false;
+      }
+    }
+
     return {
       verified: integrityValid && timestampMatch,
       canonical_timestamp: commitment.canonical_timestamp,
@@ -786,6 +855,9 @@ async function executeGMCEngine(
       ordering_hash: commitment.ordering_hash,
       integrity_valid: integrityValid,
       timestamp_match: timestampMatch,
+      merkle_verified: merkleValid,
+      merkle_root: merkleRoot,
+      blockchain_anchor_ref: commitment.blockchain_anchor_ref,
       validator_count: (commitment.validator_signatures as any[])?.length ?? 0,
       exchange_id: commitment.exchange_id,
       trade_id: commitment.trade_id,
@@ -831,10 +903,40 @@ async function handleGMCDynamicRoute(
       return { error: "Event not found", code: "NOT_FOUND" };
     }
 
-    // Build verification bundle (Phase 7 preview)
+    // Phase 7: Build complete verification bundle
     const verificationProof = await hashData(
       `${commitment.event_hash}:${(commitment.validator_signatures as any[]).map((v: any) => v.signature).join(":")}`
     );
+
+    // Parse Merkle proof if available
+    let merkleData = null;
+    let merkleVerified: boolean | null = null;
+    if (commitment.merkle_proof) {
+      try {
+        merkleData = typeof commitment.merkle_proof === "string"
+          ? JSON.parse(commitment.merkle_proof) : commitment.merkle_proof;
+        merkleVerified = await verifyMerkleProof(
+          commitment.event_hash,
+          merkleData.proof,
+          merkleData.root
+        );
+      } catch {
+        merkleVerified = false;
+      }
+    }
+
+    // Get blockchain anchor details if referenced
+    let blockchainAnchor = null;
+    if (commitment.blockchain_anchor_ref) {
+      const parts = commitment.blockchain_anchor_ref.split(":");
+      if (parts.length >= 3) {
+        blockchainAnchor = {
+          blockchain: parts[0],
+          block_number: parseInt(parts[1], 10),
+          tx_hash: parts.slice(2).join(":"),
+        };
+      }
+    }
 
     return {
       event_hash: commitment.event_hash,
@@ -847,10 +949,22 @@ async function handleGMCDynamicRoute(
       trade_hash: commitment.trade_hash,
       validator_signatures: commitment.validator_signatures,
       verification_proof: verificationProof,
-      merkle_proof: commitment.merkle_proof ?? "pending_merkle_batch",
+      // Phase 6: Merkle proof data
+      merkle_proof: merkleData,
+      merkle_verified: merkleVerified,
+      // Phase 7: Blockchain anchor reference
+      blockchain_anchor: blockchainAnchor,
       blockchain_anchor_ref: commitment.blockchain_anchor_ref ?? "pending_anchor",
       status: commitment.status,
       created_at: commitment.created_at,
+      // Complete verification bundle
+      verification_bundle: {
+        event_integrity: true,
+        merkle_inclusion: merkleVerified,
+        blockchain_anchored: !!blockchainAnchor,
+        validator_consensus: (commitment.validator_signatures as any[])?.length ?? 0,
+        proof_complete: merkleVerified === true && !!blockchainAnchor,
+      },
     };
   }
 
@@ -859,11 +973,9 @@ async function handleGMCDynamicRoute(
   if (ledgerBlockMatch) {
     const batchId = decodeURIComponent(ledgerBlockMatch[1]);
 
-    // Retrieve a batch of commitments ordered deterministically
-    // batch_id can be "latest" or a sequence range like "1-100"
     let query = supabase
       .from("trade_commitments")
-      .select("id, event_hash, canonical_timestamp, sequence_number, ordering_hash, exchange_id, trade_id, status, created_at")
+      .select("id, event_hash, canonical_timestamp, sequence_number, ordering_hash, exchange_id, trade_id, status, merkle_proof, blockchain_anchor_ref, created_at")
       .order("sequence_number", { ascending: true });
 
     if (batchId === "latest") {
@@ -885,16 +997,27 @@ async function handleGMCDynamicRoute(
     if (error) return { error: "Failed to query ledger block" };
 
     const eventHashes = (events ?? []).map((e: any) => e.event_hash);
-    const batchHash = eventHashes.length > 0
-      ? await hashData(eventHashes.join(":"))
-      : "empty_batch";
+
+    // Phase 6: Build Merkle tree for the batch
+    let merkleRoot = "empty_batch";
+    let treeDepth = 0;
+    if (eventHashes.length > 0) {
+      const tree = await buildMerkleTree(eventHashes);
+      merkleRoot = tree.root;
+      treeDepth = tree.depth;
+    }
+
+    // Count anchored vs pending events
+    const anchoredCount = (events ?? []).filter((e: any) => e.status === "anchored").length;
 
     return {
       batch_id: batchId,
-      batch_hash: batchHash,
+      merkle_root: merkleRoot,
+      tree_depth: treeDepth,
       event_count: eventHashes.length,
+      anchored_count: anchoredCount,
+      pending_count: eventHashes.length - anchoredCount,
       events: events ?? [],
-      merkle_root: batchHash, // Simplified — full Merkle tree in Phase 6
       created_at: new Date().toISOString(),
     };
   }

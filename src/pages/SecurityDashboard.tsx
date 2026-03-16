@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
@@ -17,6 +17,7 @@ import {
   Search,
   BellRing,
   CheckCircle,
+  Shield,
 } from "lucide-react";
 import {
   Table,
@@ -26,6 +27,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type SeverityFilter = "all" | "critical" | "warning" | "error" | "info";
 type DailyScanStatus = "pass" | "warn" | "fail";
@@ -51,6 +53,30 @@ type DailyScansResponse = {
   }[];
 };
 
+type AutoScanResult = {
+  id: string;
+  ran_at: string;
+  scans: DailyScansResponse["scans"];
+};
+
+const AUTO_SCAN_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
+const MAX_STORED_SCANS = 15;
+const AUTO_SCAN_STORAGE_KEY = "dgtn_auto_scans";
+
+function loadStoredScans(): AutoScanResult[] {
+  try {
+    const raw = localStorage.getItem(AUTO_SCAN_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw).slice(0, MAX_STORED_SCANS);
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredScans(scans: AutoScanResult[]) {
+  localStorage.setItem(AUTO_SCAN_STORAGE_KEY, JSON.stringify(scans.slice(0, MAX_STORED_SCANS)));
+}
+
 export default function SecurityDashboard() {
   const { user, userId, isSuperAdmin, isAuditor, loading, getAccessToken } = useAuth();
   const canView = isSuperAdmin || isAuditor;
@@ -58,6 +84,9 @@ export default function SecurityDashboard() {
   const queryClient = useQueryClient();
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [autoScans, setAutoScans] = useState<AutoScanResult[]>(loadStoredScans);
+  const autoScanTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Security logs
   const {
@@ -179,6 +208,67 @@ export default function SecurityDashboard() {
     },
   });
 
+  // ── Automatic Security Scan (every 8 hours) ──
+  const runAutoScan = useCallback(async () => {
+    if (!isSuperAdmin || !userId) return;
+    const token = await getAccessToken();
+    if (!token) return;
+
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/api-gateway/api/security/daily-scans`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-user-id": userId,
+        },
+      });
+
+      if (!response.ok) return;
+
+      const payload = (await response.json()) as DailyScansResponse;
+      const newScan: AutoScanResult = {
+        id: `auto-${Date.now()}`,
+        ran_at: new Date().toISOString(),
+        scans: payload.scans ?? [],
+      };
+
+      setAutoScans((prev) => {
+        const updated = [newScan, ...prev].slice(0, MAX_STORED_SCANS);
+        saveStoredScans(updated);
+        return updated;
+      });
+
+      const hasFail = payload.scans?.some((s) => s.status === "fail");
+      if (hasFail) {
+        toast.error("🚨 Automated security scan detected failures");
+      } else {
+        toast.success("✅ Automated security scan completed — all checks passed");
+      }
+    } catch (e) {
+      console.error("Auto scan failed:", e);
+    }
+  }, [isSuperAdmin, userId, getAccessToken]);
+
+  // Run auto scan on mount if last scan > 8h ago, then set interval
+  useEffect(() => {
+    if (!isSuperAdmin || !userId) return;
+
+    const lastScan = autoScans[0];
+    const lastScanTime = lastScan ? new Date(lastScan.ran_at).getTime() : 0;
+    const timeSinceLastScan = Date.now() - lastScanTime;
+
+    if (timeSinceLastScan >= AUTO_SCAN_INTERVAL_MS) {
+      // Run immediately
+      runAutoScan();
+    }
+
+    autoScanTimerRef.current = setInterval(runAutoScan, AUTO_SCAN_INTERVAL_MS);
+
+    return () => {
+      if (autoScanTimerRef.current) clearInterval(autoScanTimerRef.current);
+    };
+  }, [isSuperAdmin, userId, runAutoScan]);
+
   // Realtime subscription for security_alerts
   useEffect(() => {
     if (!canView) return;
@@ -218,6 +308,24 @@ export default function SecurityDashboard() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["security-alerts"] }),
   });
+
+  // ── Refresh handler with feedback ──
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchLogs(),
+        refetchIps(),
+        refetchAlerts(),
+        refetchDailyScans(),
+      ]);
+      toast.success("Security data refreshed");
+    } catch {
+      toast.error("Failed to refresh security data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetchLogs, refetchIps, refetchAlerts, refetchDailyScans]);
 
   const combinedLogs = [...dailyScanLogs, ...securityLogs].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -279,6 +387,22 @@ export default function SecurityDashboard() {
     }
   };
 
+  const scanStatusIcon = (status: DailyScanStatus) => {
+    switch (status) {
+      case "pass": return "✅";
+      case "warn": return "⚠️";
+      case "fail": return "🚨";
+    }
+  };
+
+  const scanStatusColor = (status: DailyScanStatus) => {
+    switch (status) {
+      case "pass": return "text-accent";
+      case "warn": return "text-yellow-400";
+      case "fail": return "text-destructive";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background grid-bg">
       <Header />
@@ -295,15 +419,11 @@ export default function SecurityDashboard() {
               </span>
             </div>
             <button
-              onClick={() => {
-                refetchLogs();
-                refetchIps();
-                refetchAlerts();
-                refetchDailyScans();
-              }}
-              className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80 disabled:opacity-50 transition-colors"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} /> Refresh
             </button>
           </div>
           <p className="text-sm font-mono text-muted-foreground">
@@ -380,6 +500,72 @@ export default function SecurityDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Automated Security Scans (every 8 hours) */}
+        {isSuperAdmin && (
+          <div className="glass-panel p-6 border border-primary/20">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-primary flex items-center gap-2">
+                <Shield className="w-4 h-4" /> Automated Security Scans ({autoScans.length})
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-muted-foreground">Every 8h</span>
+                <button
+                  onClick={runAutoScan}
+                  className="text-[10px] font-mono px-2 py-1 bg-secondary text-foreground rounded hover:bg-secondary/80 transition-colors"
+                >
+                  Run Now
+                </button>
+              </div>
+            </div>
+
+            {autoScans.length === 0 ? (
+              <p className="text-xs font-mono text-muted-foreground">No automated scans yet — first scan will run shortly</p>
+            ) : (
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-3 pr-3">
+                  {autoScans.map((scan) => (
+                    <div key={scan.id} className="bg-secondary/50 rounded-lg p-3 border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          {new Date(scan.ran_at).toLocaleString()}
+                        </span>
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                          scan.scans.some((s) => s.status === "fail")
+                            ? "bg-destructive/20 text-destructive"
+                            : scan.scans.some((s) => s.status === "warn")
+                            ? "bg-yellow-500/20 text-yellow-400"
+                            : "bg-accent/20 text-accent"
+                        }`}>
+                          {scan.scans.some((s) => s.status === "fail")
+                            ? "FAILURES"
+                            : scan.scans.some((s) => s.status === "warn")
+                            ? "WARNINGS"
+                            : "ALL PASS"}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {scan.scans.map((check) => (
+                          <div key={check.id} className="flex items-start gap-2">
+                            <span className="text-xs shrink-0">{scanStatusIcon(check.status)}</span>
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-[10px] font-mono font-semibold ${scanStatusColor(check.status)}`}>
+                                {check.label}
+                              </span>
+                              <p className="text-[10px] font-mono text-muted-foreground truncate">
+                                {check.summary}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
           </div>
         )}
 
