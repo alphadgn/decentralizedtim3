@@ -210,10 +210,20 @@ export default function SecurityDashboard() {
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
+  const logStats = combinedLogs.reduce(
+    (acc, log) => {
+      if (log.severity === "critical") acc.critical += 1;
+      if (log.severity === "warning") acc.warning += 1;
+      if (log.event_type === "rate_limit_exceeded") acc.rateLimited += 1;
+      return acc;
+    },
+    { critical: 0, warning: 0, rateLimited: 0 }
+  );
+
   // Stats
-  const criticalCount = securityLogs.filter((l) => l.severity === "critical").length;
-  const warningCount = securityLogs.filter((l) => l.severity === "warning").length;
-  const rateLimitCount = securityLogs.filter((l) => l.event_type === "rate_limit_exceeded").length;
+  const criticalCount = logStats.critical;
+  const warningCount = logStats.warning;
+  const rateLimitCount = logStats.rateLimited;
   const activeBlocks = blockedIps.filter(
     (ip) => ip.blocked_until && new Date(ip.blocked_until) > new Date()
   ).length;
