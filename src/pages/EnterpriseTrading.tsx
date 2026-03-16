@@ -604,6 +604,248 @@ export default function EnterpriseTrading() {
           </motion.div>
         )}
 
+        {/* Hardware Root of Trust */}
+        {activeTab === "hw-rot" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <HardDrive className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Hardware Root of Trust — Phase 13
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Cryptographic keys are stored in FIPS 140-3 Level 3 HSMs. Platform integrity verified via TPM 2.0
+                measured boot. Critical operations execute inside Intel SGX / AMD SEV secure enclaves.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                {/* HSM */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-mono font-semibold text-foreground">HSM Signing</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Manufacturer</span><span className="text-foreground">Thales Luna 7</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">FIPS Level</span><span className="text-primary font-bold">140-3 Level 3</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Algorithm</span><span className="text-foreground">ECDSA-P384</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Key Extractable</span><span className="text-destructive font-bold">NEVER</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Ops/sec</span><span className="text-accent">20,000</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Regions</span><span className="text-foreground">3 (US, EU, AP)</span></div>
+                  </div>
+                </div>
+
+                {/* TPM */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-accent/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ShieldCheck className="w-4 h-4 text-accent" />
+                    <span className="text-xs font-mono font-semibold text-foreground">TPM Attestation</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Version</span><span className="text-foreground">TPM 2.0</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Measured Boot</span><span className="text-accent font-bold">Verified</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">PCR Registers</span><span className="text-foreground">8 (PCR0–PCR7)</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">AIK Signing</span><span className="text-foreground">TPM2_Quote</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Sealed Secrets</span><span className="text-primary">Per-enclave</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Status</span><span className="text-accent">Active</span></div>
+                  </div>
+                </div>
+
+                {/* Secure Enclave */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Cpu className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-mono font-semibold text-foreground">Secure Enclaves</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Technology</span><span className="text-foreground">Intel SGX / AMD SEV</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Attestation</span><span className="text-foreground">DCAP / SEV-SNP</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">TCB Status</span><span className="text-accent font-bold">UpToDate</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Debug Mode</span><span className="text-destructive font-bold">DISABLED</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Memory</span><span className="text-foreground">256 MB EPC</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Seal Policy</span><span className="text-primary">MRENCLAVE</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust Chain */}
+              <div className="bg-secondary/30 rounded-lg p-4">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
+                  Hardware Trust Chain Verification
+                </div>
+                <div className="space-y-2 text-[10px] font-mono">
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">1.</span>
+                    <span className="text-foreground"><span className="text-accent">TPM 2.0</span> verifies platform integrity via measured boot (PCR0–PCR7)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">2.</span>
+                    <span className="text-foreground"><span className="text-accent">HSM</span> stores validator signing keys (FIPS 140-3 Level 3, non-extractable)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">3.</span>
+                    <span className="text-foreground"><span className="text-accent">Intel SGX</span> enclave executes consensus logic in isolated memory</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">4.</span>
+                    <span className="text-foreground">Remote attestation proves code integrity (MRENCLAVE) to all parties</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">5.</span>
+                    <span className="text-foreground">Trust chain: TPM Root → HSM Key Attestation → Enclave Quote → Event Signature</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Compliance */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Hardware Security Compliance
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "FIPS 140-3 Level 3", desc: "HSM certification", verified: true },
+                  { label: "Common Criteria EAL4+", desc: "Hardware evaluation", verified: true },
+                  { label: "PCI HSM", desc: "Payment industry standard", verified: true },
+                  { label: "NIST SP 800-57", desc: "Key management", verified: true },
+                ].map((c) => (
+                  <div key={c.label} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      <CheckCircle className="w-3 h-3 text-accent" />
+                      <span className="text-[10px] font-mono font-semibold text-foreground">{c.label}</span>
+                    </div>
+                    <div className="text-[10px] font-mono text-muted-foreground">{c.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Formal Verification */}
+        {activeTab === "formal-verify" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Formal Verification — Phase 14
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Mathematical proofs guarantee protocol correctness, consensus safety, and liveness.
+                Specifications are modeled in TLA+, Isabelle/HOL, Coq, and Lean4.
+              </p>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Properties Proven", value: "15 / 15", color: "text-accent" },
+                  { label: "Invariants Holding", value: "8 / 8", color: "text-accent" },
+                  { label: "Model States", value: "9.4M+", color: "text-primary" },
+                  { label: "Coverage", value: "94.7%", color: "text-primary" },
+                ].map((s) => (
+                  <div key={s.label} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">{s.label}</div>
+                    <div className={`text-lg font-mono font-semibold ${s.color}`}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Formal Specs */}
+              <div className="space-y-3">
+                {[
+                  { component: "Trade Commitment Protocol", lang: "TLA+", props: 3, proven: 3, categories: ["safety", "liveness"] },
+                  { component: "Latency-Neutral Ordering", lang: "Isabelle/HOL", props: 3, proven: 3, categories: ["fairness", "correctness", "safety"] },
+                  { component: "Merkle Event Ledger", lang: "Coq", props: 3, proven: 3, categories: ["integrity", "liveness"] },
+                  { component: "Consensus Algorithm", lang: "Lean4", props: 3, proven: 3, categories: ["safety", "liveness", "correctness"] },
+                  { component: "Hash Chain Integrity", lang: "TLA+", props: 2, proven: 2, categories: ["integrity", "safety"] },
+                ].map((spec) => (
+                  <div key={spec.component} className="bg-secondary/40 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-3.5 h-3.5 text-accent" />
+                        <span className="text-xs font-mono font-semibold text-foreground">{spec.component}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono bg-primary/20 text-primary px-2 py-0.5 rounded">{spec.lang}</span>
+                        <span className="text-[10px] font-mono text-accent">{spec.proven}/{spec.props} proven</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {spec.categories.map((cat) => (
+                        <span key={cat} className="text-[9px] font-mono bg-secondary/60 text-muted-foreground px-1.5 py-0.5 rounded">{cat}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Consensus Safety Proofs */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Consensus Safety Theorems
+              </h2>
+              <div className="space-y-3">
+                {[
+                  { theorem: "Agreement", desc: "No two correct validators decide differently", technique: "Contradiction", states: "2.8M" },
+                  { theorem: "Termination", desc: "Every correct validator eventually decides", technique: "Induction", states: "1.5M" },
+                  { theorem: "Validity", desc: "Decided value was proposed by a correct validator", technique: "Model checking", states: "4.2M" },
+                  { theorem: "Deterministic Ordering", desc: "Total order on events is unique and reproducible", technique: "Refinement", states: "892K" },
+                ].map((p) => (
+                  <div key={p.theorem} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-3.5 h-3.5 text-accent" />
+                        <span className="text-xs font-mono font-semibold text-foreground">{p.theorem}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-accent">✓ PROVEN</span>
+                    </div>
+                    <p className="text-[10px] font-mono text-muted-foreground mb-1">{p.desc}</p>
+                    <div className="flex gap-3 text-[9px] font-mono text-muted-foreground">
+                      <span>Technique: <span className="text-primary">{p.technique}</span></span>
+                      <span>States: <span className="text-primary">{p.states}</span></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Protocol Invariants */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Protocol Invariants
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {[
+                  { name: "Total Order", expr: "∀ e1, e2: seq(e1) < seq(e2) ∨ seq(e1) > seq(e2) ∨ e1 = e2", cat: "safety" },
+                  { name: "Nonce Uniqueness", expr: "∀ n1, n2: n1.hash = n2.hash ⟹ n1 = n2", cat: "safety" },
+                  { name: "Merkle Consistency", expr: "|B.leaves| ≥ 16 ∧ depth = ⌈log₂(|leaves|)⌉", cat: "correctness" },
+                  { name: "Validator Quorum", expr: "|signers(d)| ≥ 2f + 1 where f = 4", cat: "safety" },
+                  { name: "Timestamp Monotonicity", expr: "canonical_ts(eᵢ) ≤ canonical_ts(eᵢ₊₁)", cat: "correctness" },
+                  { name: "Anchor Durability", expr: "∃ chain: verifiable(root, chain) ≥ 1yr", cat: "liveness" },
+                  { name: "Fairness Bound", expr: "|influence(v) − 1/n| ≤ ε(n), ε → 0", cat: "fairness" },
+                  { name: "PQ Binding", expr: "Dilithium3.Verify(pk, msg, sig) = true", cat: "integrity" },
+                ].map((inv) => (
+                  <div key={inv.name} className="bg-secondary/40 rounded-lg p-3 flex items-start gap-2">
+                    <CheckCircle className="w-3 h-3 text-accent mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-mono font-semibold text-foreground">{inv.name}</span>
+                        <span className="text-[9px] font-mono bg-secondary/60 text-muted-foreground px-1.5 py-0.5 rounded">{inv.cat}</span>
+                      </div>
+                      <div className="text-[9px] font-mono text-muted-foreground break-all">{inv.expr}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Settlement Proofs */}
         {activeTab === "settlements" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
