@@ -696,6 +696,15 @@ async function executeGMCEngine(
       verified: obs.verified,
     }));
 
+    // Phase 11: Post-quantum attestations (CRYSTALS-Dilithium3)
+    const pqAttestations = await batchPostQuantumSign(
+      latencyResult.validator_observations.map((obs) => ({
+        validator_id: obs.validator_id,
+        event_hash: eventHash,
+        receive_time: obs.receive_time,
+      }))
+    );
+
     // Verification proof
     const verificationProof = await hashData(
       `${eventHash}:${validatorSignatures.map((v: any) => v.signature).join(":")}`
