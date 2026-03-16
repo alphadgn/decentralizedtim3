@@ -90,6 +90,12 @@ export default function Pricing() {
   const email = extractPrivyEmail(user);
 
   const handleCheckout = async (tier: string) => {
+    // Enterprise Contact Sales should ALWAYS work — no login required
+    if (tier === "enterprise") {
+      window.location.assign("mailto:decentralizedtim3@gmail.com?subject=Enterprise%20Plan%20Inquiry&body=I%20am%20interested%20in%20the%20Enterprise%20plan%20for%20institutional-grade%20time%20infrastructure.");
+      return;
+    }
+
     if (!user) {
       login();
       return;
@@ -97,11 +103,6 @@ export default function Pricing() {
 
     if (tier === "free") {
       toast.info("You're already on the Free plan!");
-      return;
-    }
-
-    if (tier === "enterprise") {
-      window.location.href = "mailto:decentralizedtim3@gmail.com?subject=Enterprise%20Plan%20Inquiry";
       return;
     }
 

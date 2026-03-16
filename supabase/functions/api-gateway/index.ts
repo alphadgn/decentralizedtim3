@@ -9,6 +9,7 @@ import { batchPostQuantumSign } from "../_shared/post-quantum.ts";
 import { validateZeroTrustRequest, generateZeroTrustAudit } from "../_shared/zero-trust.ts";
 import { buildTrustChain, generateHardwareAudit } from "../_shared/hardware-root-of-trust.ts";
 import { verifyProtocolProperties, generateFormalVerificationAudit } from "../_shared/formal-verification.ts";
+import { createAuditLogEntry, generateDistributedAuditReport } from "../_shared/distributed-audit-log.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
@@ -799,6 +800,13 @@ async function executeGMCEngine(
       eventHash, sequenceNumber, canonicalTimestamp, validatorSignatures.length
     );
 
+    // Phase 15: Distributed audit logging with witness co-signatures
+    const auditLog = await createAuditLogEntry(
+      "trade_commitment",
+      eventHash,
+      { trade_id, exchange_id, sequence_number: sequenceNumber, validator_count: validatorSignatures.length }
+    );
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
@@ -866,6 +874,19 @@ async function executeGMCEngine(
         invariants_checked: formalVerification.invariants_checked,
         invariants_holding: formalVerification.invariants_holding,
         verification_hash: formalVerification.verification_hash,
+      },
+      distributed_audit: {
+        entry_id: auditLog.entry.entry_id,
+        sequence: auditLog.entry.sequence,
+        witness_count: auditLog.witness_signatures.length,
+        witness_merkle_root: auditLog.witness_merkle_root,
+        quorum_met: auditLog.quorum_met,
+        quorum_threshold: `${auditLog.quorum_threshold}/${auditLog.witness_signatures.length}`,
+        replication_regions: auditLog.replication_status.length,
+        all_regions_replicated: auditLog.replication_status.every(r => r.status === "replicated"),
+        rfc3161_tsa: auditLog.rfc3161_timestamp.tsa_name,
+        chain_integrity: auditLog.chain_integrity.integrity_status ?? "intact",
+        chain_length: auditLog.chain_integrity.chain_length,
       },
     };
   }
@@ -1260,6 +1281,22 @@ Deno.serve(async (req) => {
 
       const audit = await generateHardwareAudit();
       return new Response(JSON.stringify(audit), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Distributed audit log report endpoint (super-admin only) ──
+    if (path === "/api/security/distributed-audit") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const report = await generateDistributedAuditReport();
+      return new Response(JSON.stringify(report), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
