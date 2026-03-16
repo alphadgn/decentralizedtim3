@@ -46,6 +46,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/security" element={<SecurityDashboard />} />
+            <Route path="/security/scan/:scanId" element={<ScanDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
