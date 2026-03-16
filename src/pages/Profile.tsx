@@ -130,6 +130,7 @@ export default function Profile() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("userId", userId);
+      formData.append("email", authEmail || "");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
