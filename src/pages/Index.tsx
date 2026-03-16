@@ -7,6 +7,7 @@ import { BlockchainStatus } from "@/components/BlockchainStatus";
 import { SyncIndicator } from "@/components/SyncIndicator";
 
 const SUPPORT_EMAIL = "decentralizedtim3@gmail.com";
+const SUPPORT_EMAIL_HREF = `mailto:${SUPPORT_EMAIL}`;
 
 const Index = () => {
   return (
