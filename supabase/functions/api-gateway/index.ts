@@ -875,6 +875,19 @@ async function executeGMCEngine(
         invariants_holding: formalVerification.invariants_holding,
         verification_hash: formalVerification.verification_hash,
       },
+      distributed_audit: {
+        entry_id: auditLog.entry.entry_id,
+        sequence: auditLog.entry.sequence,
+        witness_count: auditLog.witness_signatures.length,
+        witness_merkle_root: auditLog.witness_merkle_root,
+        quorum_met: auditLog.quorum_met,
+        quorum_threshold: `${auditLog.quorum_threshold}/${auditLog.witness_signatures.length}`,
+        replication_regions: auditLog.replication_status.length,
+        all_regions_replicated: auditLog.replication_status.every(r => r.status === "replicated"),
+        rfc3161_tsa: auditLog.rfc3161_timestamp.tsa_name,
+        chain_integrity: auditLog.chain_integrity.integrity_status ?? "intact",
+        chain_length: auditLog.chain_integrity.chain_length,
+      },
     };
   }
 
