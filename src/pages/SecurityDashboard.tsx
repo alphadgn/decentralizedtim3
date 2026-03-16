@@ -60,7 +60,12 @@ export default function SecurityDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Security logs
-  const { data: securityLogs = [], refetch: refetchLogs, isLoading: logsLoading } = useQuery({
+  const {
+    data: securityLogs = [],
+    refetch: refetchLogs,
+    isLoading: logsLoading,
+    dataUpdatedAt: logsUpdatedAt,
+  } = useQuery({
     queryKey: ["security-logs"],
     queryFn: async (): Promise<SecurityLogRow[]> => {
       const { data, error } = await supabase
