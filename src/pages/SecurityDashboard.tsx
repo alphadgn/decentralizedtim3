@@ -258,19 +258,24 @@ export default function SecurityDashboard() {
       <Header />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-6">
         <BackToDashboard />
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+          <div className="flex flex-col items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <ShieldAlert className="w-5 h-5 text-destructive" />
               <h1 className="text-xl sm:text-2xl font-mono font-bold text-foreground">Security Monitor</h1>
-              <span className="ml-2 flex items-center gap-1 text-[10px] font-mono text-accent">
+              <span className="flex items-center gap-1 text-[10px] font-mono text-accent">
                 <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
                 LIVE
               </span>
             </div>
             <button
-              onClick={() => { refetchLogs(); refetchIps(); refetchAlerts(); }}
-              className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80 self-start sm:self-auto"
+              onClick={() => {
+                refetchLogs();
+                refetchIps();
+                refetchAlerts();
+                refetchDailyScans();
+              }}
+              className="flex items-center gap-1.5 bg-secondary text-foreground rounded-lg px-3 py-1.5 text-xs font-mono hover:bg-secondary/80"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </button>
