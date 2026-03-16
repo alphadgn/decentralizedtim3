@@ -8,7 +8,7 @@ import { Navigate } from "react-router-dom";
 import {
   ArrowUpDown, Shield, Activity, FileCheck, Clock,
   TrendingUp, AlertTriangle, CheckCircle, Lock, Globe, Code,
-  Layers, GitBranch, Cpu, Fingerprint,
+  Layers, GitBranch, Cpu, Fingerprint, HardDrive, ShieldCheck, BookOpen,
 } from "lucide-react";
 
 // ── Mock trade events ──
