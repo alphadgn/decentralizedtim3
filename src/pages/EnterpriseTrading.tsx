@@ -8,6 +8,7 @@ import { Navigate } from "react-router-dom";
 import {
   ArrowUpDown, Shield, Activity, FileCheck, Clock,
   TrendingUp, AlertTriangle, CheckCircle, Lock, Globe, Code,
+  Layers, GitBranch, Cpu, Fingerprint,
 } from "lucide-react";
 
 // ── Mock trade events ──
@@ -22,6 +23,11 @@ function generateTradeEvents(epoch: number) {
     side: i % 2 === 0 ? "BUY" : "SELL",
     signature: `0x${Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}...`,
     verified: true,
+    fairnessScore: (0.85 + Math.random() * 0.15).toFixed(4),
+    validatorCount: 13,
+    orderingMethod: "median_receive_time_consensus",
+    merkleRoot: `0x${Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}...`,
+    dilithiumSigned: true,
   }));
 }
 
@@ -41,11 +47,22 @@ const LATENCY_DATA = [
   { exchange: "HKEX", avgLatency: "19.7ms", p99: "38ms", fairness: 97.4, anomalies: 0 },
 ];
 
+const VALIDATOR_REGIONS = [
+  { region: "us-east", validators: 2, avgPropMs: 2.1, status: "active" },
+  { region: "us-west", validators: 2, avgPropMs: 15.3, status: "active" },
+  { region: "eu-west", validators: 2, avgPropMs: 45.2, status: "active" },
+  { region: "eu-central", validators: 1, avgPropMs: 50.8, status: "active" },
+  { region: "asia-east", validators: 2, avgPropMs: 81.4, status: "active" },
+  { region: "asia-south", validators: 1, avgPropMs: 89.7, status: "active" },
+  { region: "oceania", validators: 1, avgPropMs: 112.3, status: "active" },
+  { region: "south-america", validators: 1, avgPropMs: 96.1, status: "active" },
+];
+
 const GMC_API_ENDPOINTS = [
   {
     method: "POST",
     path: "/api/gmc/commit_trade",
-    description: "Submit a trade commitment with cryptographic proof",
+    description: "Submit a trade commitment with post-quantum cryptographic proof and latency-neutral ordering",
     body: `{
   "exchange_id": "NYSE",
   "trade_id": "TRD-2026-001",
@@ -59,13 +76,24 @@ const GMC_API_ENDPOINTS = [
   "canonical_timestamp": 1773456789000,
   "ordering_hash": "d4e5f6...",
   "validator_signatures": [...],
+  "latency_neutral": {
+    "median_receive_time": 1773456789045,
+    "fairness_score": 0.9234,
+    "ordering_method": "median_receive_time_consensus",
+    "geographic_distribution": [...]
+  },
+  "post_quantum": {
+    "algorithm": "CRYSTALS-Dilithium3",
+    "nist_level": 3,
+    "attestation_count": 13
+  },
   "status": "committed"
 }`,
   },
   {
     method: "POST",
     path: "/api/gmc/verify_timestamp",
-    description: "Verify a previously committed trade timestamp",
+    description: "Verify a committed trade timestamp with Merkle inclusion and blockchain anchor proof",
     body: `{
   "event_hash": "a1b2c3...",
   "timestamp": 1773456789000
@@ -74,32 +102,52 @@ const GMC_API_ENDPOINTS = [
   "verified": true,
   "integrity_valid": true,
   "timestamp_match": true,
-  "validator_count": 4
+  "merkle_verified": true,
+  "merkle_root": "f7g8h9...",
+  "blockchain_anchor_ref": "ethereum:19421042:0x...",
+  "validator_count": 13,
+  "post_quantum_verified": true
 }`,
   },
   {
     method: "GET",
     path: "/api/gmc/event_proof/{event_hash}",
-    description: "Retrieve full verification bundle for an event",
+    description: "Retrieve full verification bundle with Merkle proof, blockchain anchor, and post-quantum attestations",
     body: null,
     response: `{
   "event_hash": "a1b2c3...",
-  "validator_signatures": [...],
-  "verification_proof": "...",
-  "merkle_proof": "pending_merkle_batch",
-  "blockchain_anchor_ref": "pending_anchor"
+  "verification_bundle": {
+    "event_integrity": true,
+    "merkle_inclusion": true,
+    "blockchain_anchored": true,
+    "validator_consensus": 13,
+    "post_quantum_signed": true,
+    "proof_complete": true
+  },
+  "merkle_proof": {
+    "root": "...",
+    "proof": [...],
+    "tree_depth": 4
+  },
+  "blockchain_anchor": {
+    "blockchain": "ethereum",
+    "block_number": 19421042,
+    "tx_hash": "0x..."
+  },
+  "post_quantum_attestations": [...]
 }`,
   },
   {
     method: "GET",
     path: "/api/gmc/ledger_block/{batch_id}",
-    description: "Query deterministically ordered event batches",
+    description: "Query deterministically ordered event batches with Merkle roots",
     body: null,
     response: `{
   "batch_id": "latest",
-  "batch_hash": "...",
-  "event_count": 50,
   "merkle_root": "...",
+  "tree_depth": 6,
+  "event_count": 50,
+  "anchored_count": 48,
   "events": [...]
 }`,
   },
@@ -108,7 +156,7 @@ const GMC_API_ENDPOINTS = [
 export default function EnterpriseTrading() {
   const { user, loading } = useAuth();
   const { epoch, signalBand } = useNetworkTime();
-  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "gmc-api">("ordering");
+  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "merkle" | "pq-crypto" | "gmc-api">("ordering");
   const [tradeEvents, setTradeEvents] = useState(generateTradeEvents(epoch));
 
   useEffect(() => {
@@ -121,6 +169,8 @@ export default function EnterpriseTrading() {
     { id: "ordering" as const, label: "Trade Ordering", icon: ArrowUpDown },
     { id: "mev" as const, label: "MEV Protection", icon: Shield },
     { id: "latency" as const, label: "Latency Fairness", icon: Activity },
+    { id: "merkle" as const, label: "Merkle Ledger", icon: GitBranch },
+    { id: "pq-crypto" as const, label: "Post-Quantum", icon: Fingerprint },
     { id: "settlements" as const, label: "Settlements", icon: FileCheck },
     { id: "gmc-api" as const, label: "GMC API", icon: Globe },
   ];
@@ -136,7 +186,7 @@ export default function EnterpriseTrading() {
             <span className="bg-primary/20 text-primary text-[10px] font-mono font-bold px-2 py-0.5 rounded">LIVE</span>
           </div>
           <p className="text-sm font-mono text-muted-foreground text-center">
-            Global Market Clock — Deterministic trade ordering, MEV protection, and settlement proofs
+            Global Market Clock — Deterministic trade ordering with post-quantum cryptographic verification
           </p>
         </motion.div>
 
@@ -145,8 +195,8 @@ export default function EnterpriseTrading() {
           {[
             { icon: Clock, label: "Canonical Time", value: new Date(epoch).toISOString().slice(11, 23), accent: "neon-text-cyan" },
             { icon: TrendingUp, label: "Signal", value: signalBand, accent: "neon-text-green" },
-            { icon: Shield, label: "MEV Commits", value: `${MEV_COMMITS.filter((c) => c.status === "verified").length}/${MEV_COMMITS.length}`, accent: "neon-text-green" },
-            { icon: Lock, label: "Settlement Proofs", value: "1,482", accent: "neon-text-cyan" },
+            { icon: Fingerprint, label: "PQ Signatures", value: "Dilithium3", accent: "neon-text-green" },
+            { icon: Layers, label: "Validators", value: "13 / 8 regions", accent: "neon-text-cyan" },
           ].map((s) => (
             <div key={s.label} className="glass-panel p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -176,43 +226,64 @@ export default function EnterpriseTrading() {
 
         {/* Trade Ordering */}
         {activeTab === "ordering" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-5 overflow-x-auto">
-            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
-              Global Trade Event Ordering — Live Feed
-            </h2>
-            <p className="text-xs font-mono text-muted-foreground mb-4">
-              Events ordered deterministically: consensus timestamp → event hash → validator consensus
-            </p>
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="text-muted-foreground border-b border-border">
-                  <th className="text-left pb-2 pr-3">Seq #</th>
-                  <th className="text-left pb-2 pr-3">Canonical Time</th>
-                  <th className="text-left pb-2 pr-3">Exchange</th>
-                  <th className="text-left pb-2 pr-3">Pair</th>
-                  <th className="text-left pb-2 pr-3">Side</th>
-                  <th className="text-left pb-2 pr-3">Signature</th>
-                  <th className="text-left pb-2">Verified</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tradeEvents.map((ev) => (
-                  <tr key={ev.sequenceNumber} className="border-b border-border/30">
-                    <td className="py-2 pr-3 text-primary font-semibold">{ev.sequenceNumber}</td>
-                    <td className="py-2 pr-3 text-muted-foreground">{new Date(ev.canonicalTimestamp).toISOString().slice(11, 23)}</td>
-                    <td className="py-2 pr-3 text-foreground">{ev.exchangeId}</td>
-                    <td className="py-2 pr-3 text-foreground">{ev.pair}</td>
-                    <td className="py-2 pr-3">
-                      <span className={ev.side === "BUY" ? "text-accent" : "text-destructive"}>{ev.side}</span>
-                    </td>
-                    <td className="py-2 pr-3 text-muted-foreground">{ev.signature}</td>
-                    <td className="py-2">
-                      <CheckCircle className="w-3.5 h-3.5 text-accent" />
-                    </td>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            {/* Latency-Neutral Info Banner */}
+            <div className="glass-panel p-4 border-l-2 border-primary">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className="w-4 h-4 text-primary" />
+                <span className="text-xs font-mono font-semibold text-foreground">Latency-Neutral Ordering Active</span>
+              </div>
+              <p className="text-[10px] font-mono text-muted-foreground">
+                Events ordered by median receive-time consensus across 13 validators in 8 geographic regions.
+                Eliminates network proximity advantage for fair global ordering.
+              </p>
+              <div className="flex gap-4 mt-2">
+                <span className="text-[10px] font-mono text-primary">Method: median_receive_time_consensus</span>
+                <span className="text-[10px] font-mono text-accent">Crypto: CRYSTALS-Dilithium3</span>
+              </div>
+            </div>
+
+            <div className="glass-panel p-5 overflow-x-auto">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Global Trade Event Ordering — Live Feed
+              </h2>
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border">
+                    <th className="text-left pb-2 pr-3">Seq #</th>
+                    <th className="text-left pb-2 pr-3">Canonical Time</th>
+                    <th className="text-left pb-2 pr-3">Exchange</th>
+                    <th className="text-left pb-2 pr-3">Pair</th>
+                    <th className="text-left pb-2 pr-3">Side</th>
+                    <th className="text-left pb-2 pr-3">Fairness</th>
+                    <th className="text-left pb-2 pr-3">Validators</th>
+                    <th className="text-left pb-2 pr-3">PQ Signed</th>
+                    <th className="text-left pb-2">Verified</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {tradeEvents.map((ev) => (
+                    <tr key={ev.sequenceNumber} className="border-b border-border/30">
+                      <td className="py-2 pr-3 text-primary font-semibold">{ev.sequenceNumber}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{new Date(ev.canonicalTimestamp).toISOString().slice(11, 23)}</td>
+                      <td className="py-2 pr-3 text-foreground">{ev.exchangeId}</td>
+                      <td className="py-2 pr-3 text-foreground">{ev.pair}</td>
+                      <td className="py-2 pr-3">
+                        <span className={ev.side === "BUY" ? "text-accent" : "text-destructive"}>{ev.side}</span>
+                      </td>
+                      <td className="py-2 pr-3 text-accent">{ev.fairnessScore}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{ev.validatorCount}</td>
+                      <td className="py-2 pr-3">
+                        <Fingerprint className="w-3 h-3 text-primary" />
+                      </td>
+                      <td className="py-2">
+                        <CheckCircle className="w-3.5 h-3.5 text-accent" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </motion.div>
         )}
 
@@ -256,42 +327,278 @@ export default function EnterpriseTrading() {
 
         {/* Latency Fairness */}
         {activeTab === "latency" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-panel p-5 overflow-x-auto">
-            <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
-              Latency Fairness Report
-            </h2>
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="text-muted-foreground border-b border-border">
-                  <th className="text-left pb-2 pr-4">Exchange</th>
-                  <th className="text-left pb-2 pr-4">Avg Latency</th>
-                  <th className="text-left pb-2 pr-4">P99</th>
-                  <th className="text-left pb-2 pr-4">Fairness Score</th>
-                  <th className="text-left pb-2">Anomalies</th>
-                </tr>
-              </thead>
-              <tbody>
-                {LATENCY_DATA.map((d) => (
-                  <tr key={d.exchange} className="border-b border-border/30">
-                    <td className="py-2 pr-4 text-foreground font-semibold">{d.exchange}</td>
-                    <td className="py-2 pr-4 text-muted-foreground">{d.avgLatency}</td>
-                    <td className="py-2 pr-4 text-muted-foreground">{d.p99}</td>
-                    <td className="py-2 pr-4">
-                      <span className={d.fairness >= 97 ? "text-accent" : "text-primary"}>{d.fairness}%</span>
-                    </td>
-                    <td className="py-2">
-                      {d.anomalies > 0 ? (
-                        <span className="flex items-center gap-1 text-destructive">
-                          <AlertTriangle className="w-3 h-3" /> {d.anomalies}
-                        </span>
-                      ) : (
-                        <span className="text-accent">None</span>
-                      )}
-                    </td>
-                  </tr>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            {/* Geographic Validator Distribution */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Geographic Validator Distribution — Latency-Neutral Ordering
+              </h2>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                13 validators across 8 regions compute independent receive times. The canonical timestamp is the <span className="text-primary">median</span> of all observations, eliminating geographic proximity advantages.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {VALIDATOR_REGIONS.map((r) => (
+                  <div key={r.region} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono font-semibold text-foreground uppercase">{r.region}</span>
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    </div>
+                    <div className="text-[10px] font-mono text-muted-foreground">
+                      {r.validators} validator{r.validators > 1 ? "s" : ""} · {r.avgPropMs}ms avg
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              <div className="bg-secondary/30 rounded-lg p-3 text-[10px] font-mono text-muted-foreground">
+                <span className="text-primary">Ordering Algorithm:</span>{" "}
+                canonical_timestamp = median(validator_receive_times) → ordering_hash → sequence_number
+              </div>
+            </div>
+
+            {/* Exchange Latency Table */}
+            <div className="glass-panel p-5 overflow-x-auto">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Exchange Latency Fairness Report
+              </h2>
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border">
+                    <th className="text-left pb-2 pr-4">Exchange</th>
+                    <th className="text-left pb-2 pr-4">Avg Latency</th>
+                    <th className="text-left pb-2 pr-4">P99</th>
+                    <th className="text-left pb-2 pr-4">Fairness Score</th>
+                    <th className="text-left pb-2">Anomalies</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {LATENCY_DATA.map((d) => (
+                    <tr key={d.exchange} className="border-b border-border/30">
+                      <td className="py-2 pr-4 text-foreground font-semibold">{d.exchange}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{d.avgLatency}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{d.p99}</td>
+                      <td className="py-2 pr-4">
+                        <span className={d.fairness >= 97 ? "text-accent" : "text-primary"}>{d.fairness}%</span>
+                      </td>
+                      <td className="py-2">
+                        {d.anomalies > 0 ? (
+                          <span className="flex items-center gap-1 text-destructive">
+                            <AlertTriangle className="w-3 h-3" /> {d.anomalies}
+                          </span>
+                        ) : (
+                          <span className="text-accent">None</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Merkle Ledger */}
+        {activeTab === "merkle" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <GitBranch className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Merkle Event Ledger — Phase 6
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Trade events are batched into binary Merkle trees. Each batch's root hash is anchored to blockchain testnets
+                (Ethereum Sepolia, Solana Devnet, Polygon Amoy) for permanent public verification.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div className="bg-secondary/40 rounded-lg p-4">
+                  <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Batch Size</div>
+                  <div className="text-lg font-mono font-semibold text-foreground">16–64 events</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">Auto-batch on threshold</div>
+                </div>
+                <div className="bg-secondary/40 rounded-lg p-4">
+                  <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Proof Type</div>
+                  <div className="text-lg font-mono font-semibold text-primary">Inclusion Proof</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">Per-event Merkle path</div>
+                </div>
+                <div className="bg-secondary/40 rounded-lg p-4">
+                  <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Anchor Chains</div>
+                  <div className="text-lg font-mono font-semibold text-accent">3 Testnets</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">ETH + SOL + MATIC</div>
+                </div>
+              </div>
+              <div className="bg-secondary/30 rounded-lg p-4 space-y-2">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Merkle Tree Structure</div>
+                <pre className="text-[10px] font-mono text-foreground whitespace-pre overflow-x-auto">{`         [Root Hash]
+        /           \\
+    [H(0,1)]     [H(2,3)]
+    /    \\       /    \\
+  [E0]  [E1]  [E2]  [E3]`}</pre>
+                <div className="text-[10px] font-mono text-muted-foreground mt-2">
+                  Each leaf = SHA-256(event_hash). Internal nodes = SHA-256(left : right).
+                  Inclusion proof = sibling hashes along path to root.
+                </div>
+              </div>
+            </div>
+
+            {/* Verification Bundle */}
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-5 h-5 text-accent" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Verification Bundle — Phase 7
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Each event can produce a complete verification bundle proving its position in the global ordering.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Event Integrity", desc: "Ordering hash re-computed", icon: CheckCircle, color: "text-accent" },
+                  { label: "Merkle Inclusion", desc: "Proof verified against root", icon: GitBranch, color: "text-primary" },
+                  { label: "Blockchain Anchor", desc: "Root anchored to testnet", icon: Lock, color: "text-accent" },
+                  { label: "Validator Consensus", desc: "13 PQ-signed attestations", icon: Fingerprint, color: "text-primary" },
+                ].map((v) => (
+                  <div key={v.label} className="bg-secondary/40 rounded-lg p-3">
+                    <v.icon className={`w-4 h-4 ${v.color} mb-2`} />
+                    <div className="text-xs font-mono font-semibold text-foreground">{v.label}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground">{v.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Post-Quantum Crypto */}
+        {activeTab === "pq-crypto" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Fingerprint className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Post-Quantum Cryptographic Signatures — Phase 11
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                All validator attestations and event commitments are signed with NIST-standardized
+                post-quantum algorithms, providing resilience against quantum computing attacks.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Dilithium */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Cpu className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-mono font-semibold text-foreground">CRYSTALS-Dilithium3</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type</span>
+                      <span className="text-foreground">Lattice-based Digital Signature</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">NIST Level</span>
+                      <span className="text-primary font-bold">3 (128-bit quantum security)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Public Key Size</span>
+                      <span className="text-foreground">6,528 bits (1,952 bytes)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Signature Size</span>
+                      <span className="text-foreground">3,293 bytes</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Usage</span>
+                      <span className="text-accent">Validator Attestations</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kyber */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-accent/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock className="w-4 h-4 text-accent" />
+                    <span className="text-sm font-mono font-semibold text-foreground">CRYSTALS-Kyber768</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type</span>
+                      <span className="text-foreground">Lattice-based Key Encapsulation</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">NIST Level</span>
+                      <span className="text-primary font-bold">3 (128-bit quantum security)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Ciphertext Size</span>
+                      <span className="text-foreground">1,088 bytes</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Shared Secret</span>
+                      <span className="text-foreground">32 bytes</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Usage</span>
+                      <span className="text-accent">Secure Validator Channels</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attestation Flow */}
+              <div className="bg-secondary/30 rounded-lg p-4">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
+                  Post-Quantum Attestation Flow
+                </div>
+                <div className="space-y-2 text-[10px] font-mono">
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">1.</span>
+                    <span className="text-foreground">Trade event received by each geographic validator</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">2.</span>
+                    <span className="text-foreground">Validator computes receive-time and signs with <span className="text-accent">Dilithium3</span> private key</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">3.</span>
+                    <span className="text-foreground">Secure channel via <span className="text-accent">Kyber768</span> key encapsulation for attestation transmission</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">4.</span>
+                    <span className="text-foreground">Median receive-time computed → canonical timestamp established</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">5.</span>
+                    <span className="text-foreground">All 13 post-quantum attestations included in verification bundle</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Active Validators */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Post-Quantum Validator Network
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {VALIDATOR_REGIONS.map((r) => (
+                  <div key={r.region} className="bg-secondary/40 rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-mono font-semibold text-foreground uppercase">{r.region}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground">
+                        {r.validators} validator{r.validators > 1 ? "s" : ""} · Dilithium3 + Kyber768
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-muted-foreground">{r.avgPropMs}ms</span>
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -303,13 +610,13 @@ export default function EnterpriseTrading() {
                 Settlement Certificates
               </h2>
               <p className="text-xs font-mono text-muted-foreground mb-4">
-                Verifiable settlement proofs anchored to blockchain for regulatory compliance and audit trails.
+                Verifiable settlement proofs anchored to blockchain with Merkle inclusion and post-quantum signatures for regulatory compliance.
               </p>
             </div>
             {[
-              { id: "STL-948271039", timestamp: epoch - 3000, seqNum: 948271039, exchange: "NYSE", chain: "Ethereum", block: 19421042 },
-              { id: "STL-948271038", timestamp: epoch - 33000, seqNum: 948271038, exchange: "NASDAQ", chain: "Ethereum", block: 19421040 },
-              { id: "STL-948271037", timestamp: epoch - 63000, seqNum: 948271037, exchange: "LSE", chain: "Polygon", block: 54210012 },
+              { id: "STL-948271039", timestamp: epoch - 3000, seqNum: 948271039, exchange: "NYSE", chain: "Ethereum", block: 19421042, merkleVerified: true, pqSigned: true },
+              { id: "STL-948271038", timestamp: epoch - 33000, seqNum: 948271038, exchange: "NASDAQ", chain: "Ethereum", block: 19421040, merkleVerified: true, pqSigned: true },
+              { id: "STL-948271037", timestamp: epoch - 63000, seqNum: 948271037, exchange: "LSE", chain: "Polygon", block: 54210012, merkleVerified: true, pqSigned: true },
             ].map((s) => (
               <div key={s.id} className="glass-panel p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -319,7 +626,7 @@ export default function EnterpriseTrading() {
                   </div>
                   <span className="bg-accent/20 text-accent text-[10px] font-mono font-bold px-2 py-0.5 rounded">Verified</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs font-mono">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
                   <div>
                     <div className="text-muted-foreground">Settlement Time</div>
                     <div className="text-foreground">{new Date(s.timestamp).toISOString().slice(11, 23)}</div>
@@ -334,15 +641,21 @@ export default function EnterpriseTrading() {
                   </div>
                   <div>
                     <div className="text-muted-foreground">Blockchain</div>
-                    <div className="text-foreground">{s.chain}</div>
+                    <div className="text-foreground">{s.chain} #{s.block}</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">Block</div>
-                    <div className="text-foreground">#{s.block}</div>
+                    <div className="text-muted-foreground">Merkle Proof</div>
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 text-accent" />
+                      <span className="text-accent">Verified</span>
+                    </div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground">Proof Hash</div>
-                    <div className="text-muted-foreground">0x{Math.random().toString(16).slice(2, 10)}...</div>
+                    <div className="text-muted-foreground">PQ Signature</div>
+                    <div className="flex items-center gap-1">
+                      <Fingerprint className="w-3 h-3 text-primary" />
+                      <span className="text-primary">Dilithium3</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -361,14 +674,14 @@ export default function EnterpriseTrading() {
                 </h2>
               </div>
               <p className="text-xs font-mono text-muted-foreground mb-4">
-                Cryptographically verifiable trade ordering endpoints. All requests require an Enterprise API key with HMAC-SHA256 request signing.
+                Cryptographically verifiable trade ordering endpoints with post-quantum signatures, Merkle proofs, and blockchain anchoring. All requests require an Enterprise API key with HMAC-SHA256 request signing.
               </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {[
-                  { label: "Nonce Replay Protection", icon: Shield },
-                  { label: "BFT Consensus Timestamp", icon: Clock },
-                  { label: "Multi-Validator Signing", icon: CheckCircle },
-                  { label: "Deterministic Ordering", icon: ArrowUpDown },
+                  { label: "Latency-Neutral Ordering", icon: Globe },
+                  { label: "Merkle Event Ledger", icon: GitBranch },
+                  { label: "Post-Quantum Signatures", icon: Fingerprint },
+                  { label: "Blockchain Anchoring", icon: Lock },
                 ].map((f) => (
                   <div key={f.label} className="bg-secondary/40 rounded-lg p-3 flex items-center gap-2">
                     <f.icon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
@@ -378,7 +691,8 @@ export default function EnterpriseTrading() {
               </div>
               <div className="bg-secondary/30 rounded-lg p-3 text-[10px] font-mono text-muted-foreground">
                 <span className="text-primary">Ordering Rule:</span>{" "}
-                consensus_timestamp → ordering_hash → sequence_number
+                median_receive_time_consensus → ordering_hash → sequence_number |{" "}
+                <span className="text-accent">Crypto:</span> CRYSTALS-Dilithium3 + Kyber768
               </div>
             </div>
 
