@@ -3,6 +3,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { ensureRecentAnchors, getAnchorStatuses } from "../_shared/blockchain-anchors.ts";
 import { verifySecurityLogChain } from "../_shared/hash-chain.ts";
 import { extractBearerToken, verifyPrivyJWT, verifyPrivyTokenLightweight } from "../_shared/verify-privy-jwt.ts";
+import { buildMerkleTree, verifyMerkleProof } from "../_shared/merkle-tree.ts";
+import { computeLatencyNeutralTimestamp } from "../_shared/latency-neutral.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
