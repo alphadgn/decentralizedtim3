@@ -1136,7 +1136,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Tier access check ──
-    const enterpriseOnly = ["order-engine"];
+    const enterpriseOnly = ["order-engine", "gmc-engine"];
     if (enterpriseOnly.includes(service) && effectiveTier !== "enterprise") {
       return new Response(JSON.stringify({ error: "Insufficient subscription tier" }), {
         status: 403,
