@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { parseSecurityScanRow, type PersistedSecurityScan } from "@/lib/securityScans";
 import {
   ShieldAlert,
   AlertTriangle,
