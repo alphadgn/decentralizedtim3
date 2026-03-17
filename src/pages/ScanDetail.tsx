@@ -1,9 +1,12 @@
 import { useParams, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { parseSecurityScanRow, type PersistedSecurityScan } from "@/lib/securityScans";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   Shield,
   CheckCircle,
@@ -11,6 +14,8 @@ import {
   XCircle,
   ArrowLeft,
   Clock,
+  RefreshCw,
+  Wrench,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -19,12 +24,18 @@ type DailyScanStatus = "pass" | "warn" | "fail";
 type AutoScanResult = {
   id: string;
   ran_at: string;
+  source?: string;
   scans: {
     id: string;
     label: string;
     status: DailyScanStatus;
     summary: string;
   }[];
+  resolution?: {
+    attempted_at?: string;
+    actions?: Array<Record<string, unknown>>;
+    unresolved_checks?: string[];
+  };
 };
 
 const AUTO_SCAN_STORAGE_KEY = "dgtn_auto_scans";
@@ -65,20 +76,123 @@ const statusConfig = {
 
 export default function ScanDetail() {
   const { scanId } = useParams<{ scanId: string }>();
-  const { user, isSuperAdmin, loading } = useAuth();
+  const { user, userId, isSuperAdmin, loading, getAccessToken } = useAuth();
   const navigate = useNavigate();
   const [scan, setScan] = useState<AutoScanResult | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveResult, setResolveResult] = useState<{
+    actions: Array<Record<string, unknown>>;
+    unresolved_checks: string[];
+  } | null>(null);
 
+  // Try localStorage first, then backend persisted scans
   useEffect(() => {
-    const scans = loadStoredScans();
-    const found = scans.find((s) => s.id === scanId);
+    const localScans = loadStoredScans();
+    const found = localScans.find((s) => s.id === scanId);
     if (found) {
       setScan(found);
+      return;
+    }
+
+    // Try backend persisted scan (UUID format)
+    if (scanId && /^[0-9a-f-]{36}$/.test(scanId)) {
+      supabase
+        .from("security_logs")
+        .select("id, created_at, metadata")
+        .eq("id", scanId)
+        .eq("event_type", "automated_security_scan")
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            const parsed = parseSecurityScanRow(data);
+            if (parsed) {
+              setScan({
+                id: parsed.id,
+                ran_at: parsed.ran_at,
+                source: parsed.source,
+                scans: parsed.scans,
+                resolution: parsed.resolution,
+              });
+              return;
+            }
+          }
+          setNotFound(true);
+        });
     } else {
       setNotFound(true);
     }
   }, [scanId]);
+
+  const handleResolve = useCallback(async () => {
+    if (!isSuperAdmin || !userId || !scan) return;
+    setIsResolving(true);
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        toast.error("Failed to get access token");
+        return;
+      }
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      // Use the backend scan ID if it's a UUID, otherwise pass null
+      const backendScanId = /^[0-9a-f-]{36}$/.test(scan.id) ? scan.id : null;
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/api-gateway/api/security/resolve-scan`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-user-id": userId,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ scan_log_id: backendScanId }),
+        }
+      );
+
+      if (!response.ok) {
+        toast.error("Resolve request failed");
+        return;
+      }
+
+      const result = await response.json();
+      setResolveResult({
+        actions: result.actions ?? [],
+        unresolved_checks: result.unresolved_checks ?? [],
+      });
+
+      // Update scan with new data from rescanned result
+      if (result.rescanned) {
+        setScan((prev) =>
+          prev
+            ? {
+                ...prev,
+                scans: result.rescanned.scans ?? prev.scans,
+                resolution: {
+                  attempted_at: new Date().toISOString(),
+                  actions: result.actions,
+                  unresolved_checks: result.unresolved_checks,
+                },
+              }
+            : prev
+        );
+      }
+
+      const unresolvedCount = result.unresolved_checks?.length ?? 0;
+      if (unresolvedCount > 0) {
+        toast.warning(`Resolved what we could — ${unresolvedCount} check(s) require manual action`);
+      } else {
+        toast.success("All resolvable issues have been addressed");
+      }
+    } catch (e) {
+      console.error("Resolve failed:", e);
+      toast.error("Failed to resolve scan issues");
+    } finally {
+      setIsResolving(false);
+    }
+  }, [isSuperAdmin, userId, scan, getAccessToken]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
@@ -94,7 +208,7 @@ export default function ScanDetail() {
             <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h1 className="text-xl font-mono font-bold text-foreground mb-2">Scan Not Found</h1>
             <p className="text-sm font-mono text-muted-foreground mb-6">
-              This scan may have been cleared from local storage.
+              This scan may have been cleared from local storage or does not exist in the backend.
             </p>
             <button
               onClick={() => navigate("/security")}
@@ -122,6 +236,7 @@ export default function ScanDetail() {
   const passCount = scan.scans.filter((s) => s.status === "pass").length;
   const warnCount = scan.scans.filter((s) => s.status === "warn").length;
   const failCount = scan.scans.filter((s) => s.status === "fail").length;
+  const hasFailures = failCount > 0 || warnCount > 0;
 
   return (
     <div className="min-h-screen bg-background grid-bg">
@@ -129,7 +244,6 @@ export default function ScanDetail() {
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-8 space-y-6">
         <BackToDashboard />
 
-        {/* Back to Security */}
         <button
           onClick={() => navigate("/security")}
           className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
@@ -152,15 +266,35 @@ export default function ScanDetail() {
                     <span className="text-xs font-mono text-muted-foreground">
                       {new Date(scan.ran_at).toLocaleString()}
                     </span>
+                    {scan.source && (
+                      <span className="text-[10px] font-mono bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">
+                        {scan.source}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-              <span className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg ${overallConfig.badgeBg}`}>
-                {overallConfig.label}
-              </span>
+              <div className="flex items-center gap-2">
+                {hasFailures && (
+                  <button
+                    onClick={handleResolve}
+                    disabled={isResolving}
+                    className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {isResolving ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Wrench className="w-3.5 h-3.5" />
+                    )}
+                    {isResolving ? "Resolving…" : "Resolve Issues"}
+                  </button>
+                )}
+                <span className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg ${overallConfig.badgeBg}`}>
+                  {overallConfig.label}
+                </span>
+              </div>
             </div>
 
-            {/* Summary stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-background/50 rounded-lg p-3 text-center">
                 <span className="text-lg font-mono font-bold text-accent">{passCount}</span>
@@ -177,6 +311,49 @@ export default function ScanDetail() {
             </div>
           </div>
         </motion.div>
+
+        {/* Resolve Result */}
+        {resolveResult && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="glass-panel p-5 border border-primary/30">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
+                <Wrench className="w-4 h-4" /> Resolution Results
+              </h2>
+              <div className="space-y-2">
+                {resolveResult.actions.map((action, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 p-2 rounded-lg text-xs font-mono ${
+                      action.status === "completed"
+                        ? "bg-accent/10 text-accent"
+                        : "bg-yellow-500/10 text-yellow-400"
+                    }`}
+                  >
+                    {action.status === "completed" ? (
+                      <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    )}
+                    <div>
+                      <span className="font-semibold">{String(action.check_id)}</span>
+                      <span className="text-muted-foreground"> — {String(action.action)}</span>
+                      {action.reason && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {String(action.reason)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {resolveResult.unresolved_checks.length > 0 && (
+                <p className="text-[10px] font-mono text-yellow-400 mt-3">
+                  ⚠️ {resolveResult.unresolved_checks.length} check(s) require manual forensic review
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Individual scan checks */}
         <div className="space-y-3">
@@ -211,7 +388,6 @@ export default function ScanDetail() {
                       {check.summary}
                     </p>
 
-                    {/* Extended details per check type */}
                     <div className="mt-3 pt-3 border-t border-border">
                       {check.id === "hash_chain_integrity" && (
                         <div className="space-y-1.5">
@@ -265,12 +441,25 @@ export default function ScanDetail() {
           <div className="space-y-1.5">
             <DetailRow label="Scan ID" value={scan.id} />
             <DetailRow label="Executed At" value={new Date(scan.ran_at).toISOString()} />
-            <DetailRow label="Scan Type" value="Automated (8-hour interval)" />
+            <DetailRow label="Scan Type" value={scan.source === "scheduled" ? "Automated (8-hour interval)" : scan.source ?? "Automated (8-hour interval)"} />
             <DetailRow label="Checks Performed" value={String(scan.scans.length)} />
-            <DetailRow label="Storage" value="Client-side (localStorage)" />
-            <DetailRow label="Retention" value="Last 15 scans" />
+            <DetailRow label="Storage" value={/^[0-9a-f-]{36}$/.test(scan.id) ? "Backend (security_logs)" : "Client-side (localStorage)"} />
           </div>
         </div>
+
+        {/* Resolution history */}
+        {scan.resolution?.attempted_at && (
+          <div className="glass-panel p-4 sm:p-5 border border-primary/20">
+            <h2 className="text-sm font-mono uppercase tracking-widest text-primary mb-3">
+              Previous Resolution
+            </h2>
+            <div className="space-y-1.5">
+              <DetailRow label="Attempted" value={new Date(scan.resolution.attempted_at).toLocaleString()} />
+              <DetailRow label="Actions" value={String(scan.resolution.actions?.length ?? 0)} />
+              <DetailRow label="Unresolved" value={String(scan.resolution.unresolved_checks?.length ?? 0)} />
+            </div>
+          </div>
+        )}
 
         <footer className="text-center py-6 text-xs font-mono text-muted-foreground">
           DGTN Protocol — Security Scan Report
