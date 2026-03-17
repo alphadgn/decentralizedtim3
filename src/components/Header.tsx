@@ -7,6 +7,9 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 const AUTH_REDIRECT_ORIGIN = "https://defitime.io";
+// Only exact origins that are registered in Privy's allowed_domains.
+// Preview/branch domains (id-preview--*.lovable.app) are NOT allowlisted
+// by Privy and will get 403, so they must redirect to production.
 const PRIVY_ALLOWED_ORIGINS = new Set([
   "https://defitime.io",
   "http://defitime.io",
@@ -14,18 +17,11 @@ const PRIVY_ALLOWED_ORIGINS = new Set([
   "http://www.defitime.io",
   "https://decentralizedtim3.lovable.app",
   "https://www.decentralizedtim3.lovable.app",
+  "https://604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
+  "https://www.604fe7d4-ffda-4369-8729-382130c9bc18.lovableproject.com",
 ]);
 
-const isLovableHostedOrigin = (origin: string) => {
-  try {
-    const { protocol, hostname } = new URL(origin);
-    return protocol === "https:" && (hostname.endsWith(".lovable.app") || hostname.endsWith(".lovableproject.com"));
-  } catch {
-    return false;
-  }
-};
-
-const canOpenPrivyModal = (origin: string) => PRIVY_ALLOWED_ORIGINS.has(origin) || isLovableHostedOrigin(origin);
+const canOpenPrivyModal = (origin: string) => PRIVY_ALLOWED_ORIGINS.has(origin);
 
 export function Header() {
   const { user, isAdmin, isSuperAdmin, isAuditor, isSupport, signOut, login, blocked, unauthorized, attemptCount } = useAuth();
