@@ -570,12 +570,12 @@ export default function SecurityDashboard() {
               </div>
             </div>
 
-            {autoScans.length === 0 ? (
+            {mergedScans.length === 0 ? (
               <p className="text-xs font-mono text-muted-foreground">No automated scans yet — first scan will run shortly</p>
             ) : (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3 pr-1 sm:pr-3">
-                  {autoScans.map((scan) => (
+                  {mergedScans.map((scan) => (
                     <div key={scan.id} className="bg-secondary/50 rounded-lg p-3 border border-border">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
