@@ -186,6 +186,8 @@ export default function EnterpriseTrading() {
     { id: "pq-crypto" as const, label: "Post-Quantum", icon: Fingerprint },
     { id: "hw-rot" as const, label: "Hardware RoT", icon: HardDrive },
     { id: "formal-verify" as const, label: "Formal Proofs", icon: BookOpen },
+    { id: "audit-log" as const, label: "Audit Log", icon: Eye },
+    { id: "quantum-kem" as const, label: "PQ-KEM", icon: KeyRound },
     { id: "settlements" as const, label: "Settlements", icon: FileCheck },
     { id: "gmc-api" as const, label: "GMC API", icon: Globe },
   ];
