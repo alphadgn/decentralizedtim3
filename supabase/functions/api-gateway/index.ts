@@ -808,6 +808,11 @@ async function executeGMCEngine(
       { trade_id, exchange_id, sequence_number: sequenceNumber, validator_count: validatorSignatures.length }
     );
 
+    // Phase 16: Quantum-resistant key exchange for this session
+    const hybridTLS = await establishHybridTLSSession(
+      `validator-gmc-primary`, `exchange-${exchange_id}`, eventHash
+    );
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
