@@ -11,6 +11,7 @@ import { buildTrustChain, generateHardwareAudit } from "../_shared/hardware-root
 import { verifyProtocolProperties, generateFormalVerificationAudit } from "../_shared/formal-verification.ts";
 import { createAuditLogEntry, generateDistributedAuditReport } from "../_shared/distributed-audit-log.ts";
 import { persistSecurityScanResult, resolveSecurityScanIssues } from "../_shared/security-scan.ts";
+import { establishHybridTLSSession, generateForwardSecrecyAudit } from "../_shared/quantum-resistant-kem.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
