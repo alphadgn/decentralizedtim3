@@ -10,6 +10,7 @@ import { validateZeroTrustRequest, generateZeroTrustAudit } from "../_shared/zer
 import { buildTrustChain, generateHardwareAudit } from "../_shared/hardware-root-of-trust.ts";
 import { verifyProtocolProperties, generateFormalVerificationAudit } from "../_shared/formal-verification.ts";
 import { createAuditLogEntry, generateDistributedAuditReport } from "../_shared/distributed-audit-log.ts";
+import { persistSecurityScanResult, resolveSecurityScanIssues } from "../_shared/security-scan.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
