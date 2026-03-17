@@ -41,11 +41,12 @@ export function Header() {
   const handleSignIn = async () => {
     const currentOrigin = window.location.origin;
 
-    // In embedded preview contexts, navigate top-level to production if origin is unsupported.
+    // In embedded preview contexts, open production domain in a new tab (cross-origin iframes block _top).
     if (!canOpenPrivyModal(currentOrigin)) {
       const redirectPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       const redirectUrl = new URL(redirectPath, AUTH_REDIRECT_ORIGIN).toString();
-      window.open(redirectUrl, "_top");
+      toast.info("Opening sign-in on production domain…");
+      window.open(redirectUrl, "_blank");
       return;
     }
 
