@@ -3,19 +3,74 @@ import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailT
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
+const SUPER_ADMIN_PRIVY_SUB = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
 const CUSTOMER_SERVICE_EMAIL = "decentralizedtim3@gmail.com";
 
-async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; privySub: string | null }> {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function extractEmailFromPayload(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+
+  const directCandidates = [
+    (payload as any)?.email,
+    (payload as any)?.email_address,
+    (payload as any)?.user?.email?.address,
+    (payload as any)?.user?.email,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && candidate.includes("@")) return candidate.toLowerCase();
+  }
+
+  const linked = (payload as any)?.linked_accounts;
+  if (Array.isArray(linked)) {
+    for (const account of linked) {
+      const accountEmail = account?.address ?? account?.email ?? account?.email_address;
+      if (typeof accountEmail === "string" && accountEmail.includes("@")) {
+        return accountEmail.toLowerCase();
+      }
+    }
+  }
+
+  return null;
+}
+
+async function authenticateRequest(req: Request): Promise<{
+  authenticated: boolean;
+  privySub: string | null;
+  tokenEmail: string | null;
+}> {
   const token = extractBearerToken(req);
-  if (!token) return { authenticated: false, privySub: null };
+  if (!token) return { authenticated: false, privySub: null, tokenEmail: null };
 
   // Try full JWKS verification first
   const payload = await verifyPrivyJWT(token);
-  if (payload) return { authenticated: true, privySub: payload.sub };
+  if (payload) {
+    return {
+      authenticated: true,
+      privySub: payload.sub ?? null,
+      tokenEmail: extractEmailFromPayload(payload as unknown as Record<string, unknown>),
+    };
+  }
 
   // Fallback to lightweight check if JWKS unavailable
   const lightweight = verifyPrivyTokenLightweight(token);
-  return { authenticated: lightweight.valid, privySub: lightweight.sub };
+  const decoded = decodeJwtPayload(token);
+  return {
+    authenticated: lightweight.valid,
+    privySub: lightweight.sub,
+    tokenEmail: extractEmailFromPayload(decoded),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -32,10 +87,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify the caller has a valid Privy token
-    const { authenticated } = await authenticateRequest(req);
+    const { authenticated, privySub, tokenEmail } = await authenticateRequest(req);
 
-    // Action: check if email is approved
     if (action === "check_approval") {
       if (!email || typeof email !== "string" || email.length > 255) {
         return new Response(JSON.stringify({ error: "Invalid email" }), {
@@ -51,9 +104,24 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Super admin is always approved and exempt from all penalties
-      if (email.toLowerCase() === SUPER_ADMIN_EMAIL) {
-        return new Response(JSON.stringify({ approved: true }), {
+      const normalizedEmail = email.toLowerCase();
+      const isSuperAdminIdentity =
+        normalizedEmail === SUPER_ADMIN_EMAIL ||
+        tokenEmail === SUPER_ADMIN_EMAIL ||
+        privySub === SUPER_ADMIN_PRIVY_SUB;
+
+      if (tokenEmail && tokenEmail !== normalizedEmail && !isSuperAdminIdentity) {
+        return new Response(JSON.stringify({ error: "Email identity mismatch" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Founder path is always approved and never blocked
+      if (isSuperAdminIdentity) {
+        await supabase.from("blocked_users").delete().eq("email", SUPER_ADMIN_EMAIL);
+
+        return new Response(JSON.stringify({ approved: true, blocked: false, attempts: 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -61,7 +129,7 @@ Deno.serve(async (req) => {
       const { data: approved } = await supabase
         .from("approved_emails")
         .select("id")
-        .eq("email", email.toLowerCase())
+        .eq("email", normalizedEmail)
         .maybeSingle();
 
       if (!approved) {
@@ -71,7 +139,7 @@ Deno.serve(async (req) => {
         const { data: existing } = await supabase
           .from("blocked_users")
           .select("id, attempt_count")
-          .eq("email", email.toLowerCase())
+          .eq("email", normalizedEmail)
           .maybeSingle();
 
         if (existing) {
@@ -88,28 +156,23 @@ Deno.serve(async (req) => {
             status: 403,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
-        } else {
-          await supabase
-            .from("blocked_users")
-            .insert({ email: email.toLowerCase(), ip_address: ip, attempt_count: 1 });
-
-          return new Response(JSON.stringify({
-            approved: false,
-            attempts: 1,
-            blocked: false,
-          }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
         }
+
+        await supabase
+          .from("blocked_users")
+          .insert({ email: normalizedEmail, ip_address: ip, attempt_count: 1 });
+
+        return new Response(JSON.stringify({ approved: false, attempts: 1, blocked: false }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(JSON.stringify({ approved: true }), {
+      return new Response(JSON.stringify({ approved: true, blocked: false, attempts: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Action: sync user
     if (!email || !userId || typeof email !== "string" || typeof userId !== "string") {
       return new Response(JSON.stringify({ error: "Missing email or userId" }), {
         status: 400,
@@ -124,8 +187,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SECURITY: Verify userId matches the email-derived UUID to prevent spoofing
-    const expectedUserId = await emailToUuid(email.toLowerCase());
+    const requestedEmail = email.toLowerCase();
+    const isSuperAdminIdentity =
+      requestedEmail === SUPER_ADMIN_EMAIL ||
+      tokenEmail === SUPER_ADMIN_EMAIL ||
+      privySub === SUPER_ADMIN_PRIVY_SUB;
+
+    const canonicalEmail = isSuperAdminIdentity ? SUPER_ADMIN_EMAIL : requestedEmail;
+
+    if (tokenEmail && tokenEmail !== canonicalEmail && !isSuperAdminIdentity) {
+      return new Response(JSON.stringify({ error: "Email identity mismatch" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const expectedUserId = await emailToUuid(canonicalEmail);
     if (userId !== expectedUserId) {
       return new Response(JSON.stringify({ error: "userId mismatch" }), {
         status: 403,
@@ -133,14 +210,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Super admin is exempt from approval check
-    const isSuperAdminEmail = email.toLowerCase() === SUPER_ADMIN_EMAIL;
-
-    if (!isSuperAdminEmail) {
+    if (!isSuperAdminIdentity) {
       const { data: approvedCheck } = await supabase
         .from("approved_emails")
         .select("id")
-        .eq("email", email.toLowerCase())
+        .eq("email", canonicalEmail)
         .maybeSingle();
 
       if (!approvedCheck) {
@@ -151,10 +225,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    const isCustomerServiceEmail = email.toLowerCase() === CUSTOMER_SERVICE_EMAIL;
-    const correctRole = isSuperAdminEmail ? "super_admin" : (isCustomerServiceEmail ? "support" : "user");
+    const isCustomerServiceEmail = canonicalEmail === CUSTOMER_SERVICE_EMAIL;
+    const correctRole = isSuperAdminIdentity ? "super_admin" : (isCustomerServiceEmail ? "support" : "user");
 
-    // Check if profile already exists
     const { data: existing } = await supabase
       .from("profiles")
       .select("user_id")
@@ -164,44 +237,40 @@ Deno.serve(async (req) => {
     if (!existing) {
       await supabase.from("profiles").insert({
         user_id: userId,
-        display_name: isSuperAdminEmail ? "Admin" : "User",
+        display_name: isSuperAdminIdentity ? "Founder" : "User",
       });
 
       await supabase.from("user_roles").insert({
         user_id: userId,
         role: correctRole,
       });
-    } else {
-      // ALWAYS enforce correct role for super admin email on every sync
-      if (isSuperAdminEmail) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("id, role")
-          .eq("user_id", userId)
-          .maybeSingle();
+    } else if (isSuperAdminIdentity) {
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("id, role")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-        if (roleData && roleData.role !== "super_admin") {
-          await supabase
-            .from("user_roles")
-            .update({ role: "super_admin" })
-            .eq("id", roleData.id);
-        } else if (!roleData) {
-          await supabase.from("user_roles").insert({
-            user_id: userId,
-            role: "super_admin",
-          });
-        }
+      if (roleData && roleData.role !== "super_admin") {
+        await supabase
+          .from("user_roles")
+          .update({ role: "super_admin" })
+          .eq("id", roleData.id);
+      } else if (!roleData) {
+        await supabase.from("user_roles").insert({
+          user_id: userId,
+          role: "super_admin",
+        });
       }
     }
 
-    // Fetch and return the user's current role
     const { data: finalRole } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
       .maybeSingle();
 
-    return new Response(JSON.stringify({ ok: true, role: finalRole?.role ?? "user" }), {
+    return new Response(JSON.stringify({ ok: true, role: finalRole?.role ?? correctRole }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
