@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { parseSecurityScanRow, type PersistedSecurityScan } from "@/lib/securityScans";
 import {
   ShieldAlert,
   AlertTriangle,
