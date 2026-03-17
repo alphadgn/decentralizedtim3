@@ -1302,6 +1302,42 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Super-admin resolve-scan endpoint ──
+    if (path === "/api/security/resolve-scan" && req.method === "POST") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let reqBody: any = {};
+      try { reqBody = await req.json(); } catch { /* empty */ }
+      const scanLogId = reqBody.scan_log_id ?? null;
+
+      const result = await resolveSecurityScanIssues(supabase, scanLogId);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Phase 16: Quantum-resistant KEM audit endpoint (super-admin only) ──
+    if (path === "/api/security/quantum-kem-audit") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const audit = await generateForwardSecrecyAudit();
+      return new Response(JSON.stringify(audit), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Super-admin security scan endpoints ──
     if (path === "/api/security/chain-integrity" || path === "/api/security/daily-scans") {
       const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
