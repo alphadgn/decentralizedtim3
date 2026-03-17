@@ -9,6 +9,7 @@ import {
   ArrowUpDown, Shield, Activity, FileCheck, Clock,
   TrendingUp, AlertTriangle, CheckCircle, Lock, Globe, Code,
   Layers, GitBranch, Cpu, Fingerprint, HardDrive, ShieldCheck, BookOpen,
+  Eye, Radio, KeyRound,
 } from "lucide-react";
 
 // ── Mock trade events ──
