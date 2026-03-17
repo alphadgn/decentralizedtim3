@@ -88,17 +88,42 @@ const GMC_API_ENDPOINTS = [
     "nist_level": 3,
     "attestation_count": 13
   },
+  "distributed_audit": {
+    "entry_id": "audit-...",
+    "witness_count": 5,
+    "witness_signatures": [
+      { "witness_id": "witness-us-east-1", "jurisdiction": "SEC", "algorithm": "ECDSA-P384-SHA384" }
+    ],
+    "quorum_met": true,
+    "replication_status": [
+      { "region": "us-east-1", "status": "replicated", "compliance_frameworks": ["SOX","SEC Rule 17a-4"] }
+    ],
+    "rfc3161_timestamp": {
+      "tsa_name": "CN=DGTN-TSA,...",
+      "gen_time": "2026-03-17T...",
+      "policy_oid": "1.3.6.1.4.1.58329.1.1",
+      "accuracy_ms": 1
+    }
+  },
+  "quantum_resistant_kem": {
+    "protocol_version": "TLS 1.3 + PQ-Hybrid",
+    "kem_algorithm": "Kyber1024-X25519-HKDF-SHA384-AES256GCM",
+    "nist_level": 5,
+    "forward_secrecy": true,
+    "session": {
+      "cipher_suite": "TLS_KYBER1024_X25519_AES_256_GCM_SHA384",
+      "pfs_guaranteed": true,
+      "double_encapsulation": true
+    }
+  },
   "hardware_root_of_trust": {
     "trust_chain_verified": true,
     "root_type": "TPM",
-    "hsm_signing": { "algorithm": "ECDSA-P384" },
-    "enclave": { "technology": "Intel SGX", "tcb_status": "UpToDate" },
     "fips_140_3_level": 3
   },
   "formal_verification": {
     "all_properties_hold": true,
-    "verified_properties": 15,
-    "invariants_holding": 8
+    "verified_properties": 15
   },
   "status": "committed"
 }`,
