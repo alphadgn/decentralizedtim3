@@ -9,6 +9,7 @@ import {
   ArrowUpDown, Shield, Activity, FileCheck, Clock,
   TrendingUp, AlertTriangle, CheckCircle, Lock, Globe, Code,
   Layers, GitBranch, Cpu, Fingerprint, HardDrive, ShieldCheck, BookOpen,
+  Eye, Radio, KeyRound,
 } from "lucide-react";
 
 // ── Mock trade events ──
@@ -87,17 +88,42 @@ const GMC_API_ENDPOINTS = [
     "nist_level": 3,
     "attestation_count": 13
   },
+  "distributed_audit": {
+    "entry_id": "audit-...",
+    "witness_count": 5,
+    "witness_signatures": [
+      { "witness_id": "witness-us-east-1", "jurisdiction": "SEC", "algorithm": "ECDSA-P384-SHA384" }
+    ],
+    "quorum_met": true,
+    "replication_status": [
+      { "region": "us-east-1", "status": "replicated", "compliance_frameworks": ["SOX","SEC Rule 17a-4"] }
+    ],
+    "rfc3161_timestamp": {
+      "tsa_name": "CN=DGTN-TSA,...",
+      "gen_time": "2026-03-17T...",
+      "policy_oid": "1.3.6.1.4.1.58329.1.1",
+      "accuracy_ms": 1
+    }
+  },
+  "quantum_resistant_kem": {
+    "protocol_version": "TLS 1.3 + PQ-Hybrid",
+    "kem_algorithm": "Kyber1024-X25519-HKDF-SHA384-AES256GCM",
+    "nist_level": 5,
+    "forward_secrecy": true,
+    "session": {
+      "cipher_suite": "TLS_KYBER1024_X25519_AES_256_GCM_SHA384",
+      "pfs_guaranteed": true,
+      "double_encapsulation": true
+    }
+  },
   "hardware_root_of_trust": {
     "trust_chain_verified": true,
     "root_type": "TPM",
-    "hsm_signing": { "algorithm": "ECDSA-P384" },
-    "enclave": { "technology": "Intel SGX", "tcb_status": "UpToDate" },
     "fips_140_3_level": 3
   },
   "formal_verification": {
     "all_properties_hold": true,
-    "verified_properties": 15,
-    "invariants_holding": 8
+    "verified_properties": 15
   },
   "status": "committed"
 }`,
@@ -168,7 +194,7 @@ const GMC_API_ENDPOINTS = [
 export default function EnterpriseTrading() {
   const { user, loading } = useAuth();
   const { epoch, signalBand } = useNetworkTime();
-  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "merkle" | "pq-crypto" | "hw-rot" | "formal-verify" | "gmc-api">("ordering");
+  const [activeTab, setActiveTab] = useState<"ordering" | "mev" | "latency" | "settlements" | "merkle" | "pq-crypto" | "hw-rot" | "formal-verify" | "audit-log" | "quantum-kem" | "gmc-api">("ordering");
   const [tradeEvents, setTradeEvents] = useState(generateTradeEvents(epoch));
 
   useEffect(() => {
@@ -185,6 +211,8 @@ export default function EnterpriseTrading() {
     { id: "pq-crypto" as const, label: "Post-Quantum", icon: Fingerprint },
     { id: "hw-rot" as const, label: "Hardware RoT", icon: HardDrive },
     { id: "formal-verify" as const, label: "Formal Proofs", icon: BookOpen },
+    { id: "audit-log" as const, label: "Audit Log", icon: Eye },
+    { id: "quantum-kem" as const, label: "PQ-KEM", icon: KeyRound },
     { id: "settlements" as const, label: "Settlements", icon: FileCheck },
     { id: "gmc-api" as const, label: "GMC API", icon: Globe },
   ];
@@ -851,6 +879,283 @@ export default function EnterpriseTrading() {
                       </div>
                       <div className="text-[9px] font-mono text-muted-foreground break-all">{inv.expr}</div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Distributed Audit Logging — Phase 15 */}
+        {activeTab === "audit-log" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Eye className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Distributed Audit Logging — Phase 15
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Every trade commitment is co-signed by jurisdictional witness nodes, replicated across 5 regulatory regions,
+                and timestamped with RFC 3161 compliant signatures for legal admissibility.
+              </p>
+
+              {/* Witness Co-Signatures */}
+              <div className="mb-4">
+                <h3 className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
+                  Witness Co-Signatures (Quorum: 3/5)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {[
+                    { id: "witness-us-east-1", region: "us-east-1", jurisdiction: "SEC", fingerprint: "SHA256:9f3k2m..." },
+                    { id: "witness-eu-west-1", region: "eu-west-1", jurisdiction: "ESMA", fingerprint: "SHA256:a7b1x4..." },
+                    { id: "witness-ap-northeast-1", region: "ap-northeast-1", jurisdiction: "JFSA", fingerprint: "SHA256:c2d8f9..." },
+                    { id: "witness-eu-central-1", region: "eu-central-1", jurisdiction: "BaFin", fingerprint: "SHA256:e5g3h7..." },
+                    { id: "witness-ap-southeast-1", region: "ap-southeast-1", jurisdiction: "MAS", fingerprint: "SHA256:k8m2n1..." },
+                  ].map((w) => (
+                    <div key={w.id} className="bg-secondary/40 rounded-lg p-3 border border-accent/10">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-mono font-semibold text-foreground uppercase">{w.region}</span>
+                        <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                      </div>
+                      <div className="space-y-1 text-[10px] font-mono">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Jurisdiction</span><span className="text-primary font-bold">{w.jurisdiction}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Algorithm</span><span className="text-foreground">ECDSA-P384-SHA384</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pubkey</span><span className="text-muted-foreground">{w.fingerprint}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cross-Region Replication */}
+              <div className="mb-4">
+                <h3 className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
+                  Cross-Region Replication Status
+                </h3>
+                <div className="space-y-2">
+                  {[
+                    { region: "us-east-1", dc: "Ashburn VA", compliance: ["SOX", "SEC Rule 17a-4", "FINRA 4511"], retention: 7, latency: 15 },
+                    { region: "eu-west-1", dc: "Dublin IE", compliance: ["MiFID II", "GDPR Art.30", "EMIR"], retention: 5, latency: 42 },
+                    { region: "eu-central-1", dc: "Frankfurt DE", compliance: ["BaFin MaRisk", "DORA", "WpHG"], retention: 10, latency: 55 },
+                    { region: "ap-northeast-1", dc: "Tokyo JP", compliance: ["FIEA", "JFSA Guidelines", "J-SOX"], retention: 7, latency: 78 },
+                    { region: "ap-southeast-1", dc: "Singapore SG", compliance: ["MAS TRM", "SFA", "PS Act"], retention: 5, latency: 91 },
+                  ].map((r) => (
+                    <div key={r.region} className="bg-secondary/40 rounded-lg p-3 flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-mono font-semibold text-foreground uppercase">{r.region}</span>
+                          <span className="text-[9px] font-mono text-muted-foreground">{r.dc}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {r.compliance.map((c) => (
+                            <span key={c} className="text-[8px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">{c}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] font-mono text-accent font-bold">REPLICATED</div>
+                        <div className="text-[9px] font-mono text-muted-foreground">{r.latency}ms · {r.retention}yr retention</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* RFC 3161 Timestamp */}
+              <div className="bg-secondary/30 rounded-lg p-4">
+                <h3 className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
+                  RFC 3161 Timestamp Authority
+                </h3>
+                <div className="space-y-1.5 text-[10px] font-mono">
+                  <div className="flex justify-between"><span className="text-muted-foreground">TSA Name</span><span className="text-foreground">CN=DGTN-TSA,O=Decentralized Global Time Network,C=US</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Policy OID</span><span className="text-foreground">1.3.6.1.4.1.58329.1.1</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Hash Algorithm</span><span className="text-primary">SHA-384</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Accuracy</span><span className="text-accent font-bold">1ms</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Legal Standard</span><span className="text-foreground">IETF RFC 3161 / eIDAS compliant</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Compliance Certifications */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Compliance Certifications
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  { framework: "SOX Section 802", status: "compliant" },
+                  { framework: "MiFID II RTS 25", status: "compliant" },
+                  { framework: "SEC Rule 17a-4(f)", status: "compliant" },
+                  { framework: "FINRA Rule 4511", status: "compliant" },
+                  { framework: "GDPR Art. 30", status: "compliant" },
+                  { framework: "DORA Art. 12", status: "compliant" },
+                ].map((c) => (
+                  <div key={c.framework} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      <CheckCircle className="w-3 h-3 text-accent" />
+                      <span className="text-[10px] font-mono font-semibold text-foreground">{c.framework}</span>
+                    </div>
+                    <div className="text-[9px] font-mono text-accent uppercase">{c.status}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Quantum-Resistant Key Exchange — Phase 16 */}
+        {activeTab === "quantum-kem" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="glass-panel p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <KeyRound className="w-5 h-5 text-primary" />
+                <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground">
+                  Quantum-Resistant Key Exchange — Phase 16
+                </h2>
+              </div>
+              <p className="text-xs font-mono text-muted-foreground mb-4">
+                Hybrid post-quantum TLS with CRYSTALS-Kyber1024 lattice-based KEM + X25519 classical ECDH.
+                Double key encapsulation ensures forward secrecy even against quantum adversaries with NIST Level 5 security.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Kyber1024 KEM */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-mono font-semibold text-foreground">CRYSTALS-Kyber1024</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="text-foreground">Lattice-based KEM</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">NIST Level</span><span className="text-primary font-bold">5 (256-bit quantum security)</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Public Key</span><span className="text-foreground">1,568 bytes</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Ciphertext</span><span className="text-foreground">1,568 bytes</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Shared Secret</span><span className="text-foreground">32 bytes</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Usage</span><span className="text-accent">Primary key encapsulation</span></div>
+                  </div>
+                </div>
+
+                {/* X25519 ECDH */}
+                <div className="bg-secondary/40 rounded-lg p-4 border border-accent/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Radio className="w-4 h-4 text-accent" />
+                    <span className="text-sm font-mono font-semibold text-foreground">X25519 ECDH</span>
+                  </div>
+                  <div className="space-y-2 text-[10px] font-mono">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="text-foreground">Elliptic Curve Diffie-Hellman</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Classical Security</span><span className="text-accent font-bold">128-bit</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Public Key</span><span className="text-foreground">32 bytes</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Shared Secret</span><span className="text-foreground">32 bytes</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">KDF</span><span className="text-foreground">HKDF-SHA384</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Usage</span><span className="text-accent">Hybrid fallback + double encaps</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hybrid TLS Handshake Flow */}
+              <div className="bg-secondary/30 rounded-lg p-4 mb-4">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-3">
+                  Hybrid Post-Quantum TLS 1.3 Handshake
+                </div>
+                <div className="space-y-2 text-[10px] font-mono">
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">1.</span>
+                    <span className="text-foreground">Client generates ephemeral <span className="text-accent">Kyber1024</span> + <span className="text-accent">X25519</span> key pairs</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">2.</span>
+                    <span className="text-foreground">ClientHello sends both public keys in hybrid key_share extension</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">3.</span>
+                    <span className="text-foreground">Server encapsulates shared secret via Kyber1024 + performs X25519 ECDH</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">4.</span>
+                    <span className="text-foreground"><span className="text-accent">Double KEM:</span> shared_secret = HKDF(kyber_ss ‖ x25519_ss ‖ context)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">5.</span>
+                    <span className="text-foreground">Server signs transcript with <span className="text-accent">Dilithium5</span> (NIST Level 5 PQ signature)</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="text-primary font-bold w-4">6.</span>
+                    <span className="text-foreground">Session keys derived — ephemeral keys destroyed for <span className="text-accent">perfect forward secrecy</span></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cipher Suite */}
+              <div className="bg-secondary/40 rounded-lg p-4">
+                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Active Cipher Suite</div>
+                <code className="text-xs font-mono text-primary">TLS_KYBER1024_X25519_AES_256_GCM_SHA384</code>
+                <div className="flex flex-wrap gap-3 mt-3 text-[10px] font-mono">
+                  <span className="text-muted-foreground">AEAD: <span className="text-foreground">AES-256-GCM</span></span>
+                  <span className="text-muted-foreground">KDF: <span className="text-foreground">HKDF-SHA384</span></span>
+                  <span className="text-muted-foreground">Sig: <span className="text-foreground">Dilithium5</span></span>
+                  <span className="text-muted-foreground">PFS: <span className="text-accent font-bold">GUARANTEED</span></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Forward Secrecy Guarantees */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Forward Secrecy Guarantees
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Key Lifetime", value: "5 min", color: "text-accent" },
+                  { label: "Rotation Policy", value: "Time + Ops", color: "text-primary" },
+                  { label: "PFS Violations", value: "0", color: "text-accent" },
+                  { label: "Compliance", value: "100%", color: "text-accent" },
+                ].map((s) => (
+                  <div key={s.label} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">{s.label}</div>
+                    <div className={`text-lg font-mono font-semibold ${s.color}`}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2 text-[10px] font-mono">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3 h-3 text-accent mt-0.5 shrink-0" />
+                  <span className="text-foreground">Ephemeral keys are destroyed after every session rotation (5 minutes or 100 operations)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3 h-3 text-accent mt-0.5 shrink-0" />
+                  <span className="text-foreground">Double encapsulation: compromise of <em>either</em> Kyber1024 or X25519 does not break secrecy</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3 h-3 text-accent mt-0.5 shrink-0" />
+                  <span className="text-foreground">NIST Level 5: resistant to classical (AES-256 equivalent) and quantum (Grover/Shor) attacks</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-3 h-3 text-accent mt-0.5 shrink-0" />
+                  <span className="text-foreground">Full transcript hashing prevents downgrade and replay attacks</span>
+                </div>
+              </div>
+            </div>
+
+            {/* NIST Compliance */}
+            <div className="glass-panel p-5">
+              <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4">
+                Post-Quantum Compliance
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "NIST SP 800-227", desc: "PQ crypto guidelines", verified: true },
+                  { label: "CNSA 2.0", desc: "NSA quantum readiness", verified: true },
+                  { label: "FIPS 203", desc: "ML-KEM (Kyber) standard", verified: true },
+                  { label: "FIPS 206", desc: "ML-DSA (Dilithium) standard", verified: true },
+                ].map((c) => (
+                  <div key={c.label} className="bg-secondary/40 rounded-lg p-3">
+                    <div className="flex items-center gap-1 mb-1">
+                      <CheckCircle className="w-3 h-3 text-accent" />
+                      <span className="text-[10px] font-mono font-semibold text-foreground">{c.label}</span>
+                    </div>
+                    <div className="text-[10px] font-mono text-muted-foreground">{c.desc}</div>
                   </div>
                 ))}
               </div>

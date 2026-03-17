@@ -211,6 +211,40 @@ export default function SecurityDashboard() {
     },
   });
 
+  // ── Load persisted scans from backend ──
+  const { data: persistedScans = [] } = useQuery({
+    queryKey: ["persisted-security-scans"],
+    enabled: isSuperAdmin,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("security_logs")
+        .select("id, created_at, metadata")
+        .eq("event_type", "automated_security_scan")
+        .order("created_at", { ascending: false })
+        .limit(15);
+
+      if (error || !data) return [];
+      return data
+        .map((row) => parseSecurityScanRow(row))
+        .filter(Boolean) as import("@/lib/securityScans").PersistedSecurityScan[];
+    },
+  });
+
+  // Merge localStorage scans + backend persisted scans, dedupe by id
+  const mergedScans = (() => {
+    const byId = new Map<string, AutoScanResult>();
+    for (const ps of persistedScans) {
+      byId.set(ps.id, { id: ps.id, ran_at: ps.ran_at, scans: ps.scans });
+    }
+    for (const ls of autoScans) {
+      if (!byId.has(ls.id)) byId.set(ls.id, ls);
+    }
+    return Array.from(byId.values()).sort(
+      (a, b) => new Date(b.ran_at).getTime() - new Date(a.ran_at).getTime()
+    ).slice(0, MAX_STORED_SCANS);
+  })();
+
   // ── Automatic Security Scan (every 8 hours) ──
   const runAutoScan = useCallback(async () => {
     if (!isSuperAdmin || !userId) return;
@@ -536,12 +570,12 @@ export default function SecurityDashboard() {
               </div>
             </div>
 
-            {autoScans.length === 0 ? (
+            {mergedScans.length === 0 ? (
               <p className="text-xs font-mono text-muted-foreground">No automated scans yet — first scan will run shortly</p>
             ) : (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3 pr-1 sm:pr-3">
-                  {autoScans.map((scan) => (
+                  {mergedScans.map((scan) => (
                     <div key={scan.id} className="bg-secondary/50 rounded-lg p-3 border border-border">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">

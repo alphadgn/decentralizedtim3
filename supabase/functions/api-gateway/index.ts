@@ -11,6 +11,7 @@ import { buildTrustChain, generateHardwareAudit } from "../_shared/hardware-root
 import { verifyProtocolProperties, generateFormalVerificationAudit } from "../_shared/formal-verification.ts";
 import { createAuditLogEntry, generateDistributedAuditReport } from "../_shared/distributed-audit-log.ts";
 import { persistSecurityScanResult, resolveSecurityScanIssues } from "../_shared/security-scan.ts";
+import { establishHybridTLSSession, generateForwardSecrecyAudit } from "../_shared/quantum-resistant-kem.ts";
 
 // ── Tier-based rate limits (requests per minute) ──
 const RATE_LIMITS: Record<string, number> = {
@@ -807,6 +808,11 @@ async function executeGMCEngine(
       { trade_id, exchange_id, sequence_number: sequenceNumber, validator_count: validatorSignatures.length }
     );
 
+    // Phase 16: Quantum-resistant key exchange for this session
+    const hybridTLS = await establishHybridTLSSession(
+      `validator-gmc-primary`, `exchange-${exchange_id}`, eventHash
+    );
+
     return {
       timestamp: canonicalTimestamp,
       iso: new Date(canonicalTimestamp).toISOString(),
@@ -879,14 +885,58 @@ async function executeGMCEngine(
         entry_id: auditLog.entry.entry_id,
         sequence: auditLog.entry.sequence,
         witness_count: auditLog.witness_signatures.length,
+        witness_signatures: auditLog.witness_signatures.map(w => ({
+          witness_id: w.witness_id,
+          region: w.region,
+          jurisdiction: w.jurisdiction,
+          signature: w.signature.slice(0, 18) + "...",
+          algorithm: w.algorithm,
+          signed_at: w.signed_at,
+        })),
         witness_merkle_root: auditLog.witness_merkle_root,
         quorum_met: auditLog.quorum_met,
         quorum_threshold: `${auditLog.quorum_threshold}/${auditLog.witness_signatures.length}`,
-        replication_regions: auditLog.replication_status.length,
-        all_regions_replicated: auditLog.replication_status.every(r => r.status === "replicated"),
-        rfc3161_tsa: auditLog.rfc3161_timestamp.tsa_name,
+        replication_status: auditLog.replication_status.map(r => ({
+          region: r.region,
+          datacenter: r.datacenter,
+          status: r.status,
+          latency_ms: r.latency_ms,
+          compliance_frameworks: r.compliance_frameworks,
+          retention_years: r.retention_years,
+          encryption_at_rest: r.encryption_at_rest,
+        })),
+        rfc3161_timestamp: {
+          tsa_name: auditLog.rfc3161_timestamp.tsa_name,
+          gen_time: auditLog.rfc3161_timestamp.gen_time,
+          policy_oid: auditLog.rfc3161_timestamp.policy_oid,
+          hash_algorithm: auditLog.rfc3161_timestamp.hash_algorithm,
+          accuracy_ms: auditLog.rfc3161_timestamp.accuracy_ms,
+          serial_number: auditLog.rfc3161_timestamp.serial_number,
+        },
         chain_integrity: auditLog.chain_integrity.integrity_status ?? "intact",
         chain_length: auditLog.chain_integrity.chain_length,
+      },
+      quantum_resistant_kem: {
+        handshake_id: hybridTLS.handshake_id,
+        protocol_version: hybridTLS.protocol_version,
+        kem_algorithm: hybridTLS.kem_result.algorithm_suite,
+        nist_level: hybridTLS.kem_result.nist_level,
+        forward_secrecy: hybridTLS.kem_result.forward_secrecy,
+        encapsulation_time_us: hybridTLS.kem_result.encapsulation_time_us,
+        session: {
+          session_id: hybridTLS.session_key.session_id,
+          cipher_suite: hybridTLS.session_key.cipher_suite,
+          pfs_guaranteed: hybridTLS.session_key.pfs_guaranteed,
+          double_encapsulation: hybridTLS.session_key.double_encapsulation,
+          key_derivation: hybridTLS.session_key.key_derivation,
+          rotation_interval_ms: hybridTLS.session_key.rotation_interval_ms,
+        },
+        server_auth: {
+          signature_algorithm: hybridTLS.server_auth.signature_algorithm,
+          ocsp_stapled: hybridTLS.server_auth.ocsp_stapled,
+        },
+        transcript_hash: hybridTLS.transcript_hash,
+        handshake_latency_ms: hybridTLS.latency_ms,
       },
     };
   }
@@ -1297,6 +1347,42 @@ Deno.serve(async (req) => {
 
       const report = await generateDistributedAuditReport();
       return new Response(JSON.stringify(report), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Super-admin resolve-scan endpoint ──
+    if (path === "/api/security/resolve-scan" && req.method === "POST") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let reqBody: any = {};
+      try { reqBody = await req.json(); } catch { /* empty */ }
+      const scanLogId = reqBody.scan_log_id ?? null;
+
+      const result = await resolveSecurityScanIssues(supabase, scanLogId);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Phase 16: Quantum-resistant KEM audit endpoint (super-admin only) ──
+    if (path === "/api/security/quantum-kem-audit") {
+      const allowedSuperAdmin = await isSuperAdminRequest(req, userId);
+      if (!allowedSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const audit = await generateForwardSecrecyAudit();
+      return new Response(JSON.stringify(audit), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
