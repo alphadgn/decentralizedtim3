@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BackToDashboard } from "@/components/BackToDashboard";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
