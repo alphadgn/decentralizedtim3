@@ -251,36 +251,69 @@ export default function SuperAdmin() {
           <h2 className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
             <Ban className="w-4 h-4 text-destructive" /> Blocked Users ({blockedUsers.length})
           </h2>
-          {blockedUsers.length === 0 ? (
-            <p className="text-xs font-mono text-muted-foreground">No blocked users</p>
-          ) : (
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="text-muted-foreground border-b border-border">
-                  <th className="text-left py-2 px-2">Email</th>
-                  <th className="text-left py-2 px-2">IP Address</th>
-                  <th className="text-left py-2 px-2">Attempts</th>
-                  <th className="text-left py-2 px-2">Blocked At</th>
-                  <th className="text-right py-2 px-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {blockedUsers.map((bu: any) => (
-                  <tr key={bu.id} className="border-b border-border/50">
-                    <td className="py-2 px-2 text-foreground">{bu.email}</td>
-                    <td className="py-2 px-2 text-muted-foreground">{bu.ip_address || "unknown"}</td>
-                    <td className="py-2 px-2 text-destructive">{bu.attempt_count}</td>
-                    <td className="py-2 px-2 text-muted-foreground">{new Date(bu.blocked_at).toLocaleString()}</td>
-                    <td className="py-2 px-2 text-right">
-                      <button onClick={() => unblockUser.mutate(bu.id)} className="text-primary hover:opacity-80 text-xs">
-                        Unblock
-                      </button>
-                    </td>
+
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              placeholder="Search by email or IP…"
+              value={blockedSearch}
+              onChange={(e) => setBlockedSearch(e.target.value)}
+              className="w-full bg-secondary border border-border rounded-lg pl-9 pr-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {(() => {
+            const q = blockedSearch.toLowerCase().trim();
+            const filtered = q
+              ? blockedUsers.filter(
+                  (bu: any) =>
+                    bu.email?.toLowerCase().includes(q) ||
+                    bu.ip_address?.toLowerCase().includes(q)
+                )
+              : blockedUsers;
+
+            if (filtered.length === 0) {
+              return (
+                <p className="text-xs font-mono text-muted-foreground">
+                  {blockedUsers.length === 0 ? "No blocked users" : "No results match your search"}
+                </p>
+              );
+            }
+
+            return (
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="text-muted-foreground border-b border-border">
+                    <th className="text-left py-2 px-2">Email</th>
+                    <th className="text-left py-2 px-2">IP Address</th>
+                    <th className="text-left py-2 px-2">Attempts</th>
+                    <th className="text-left py-2 px-2">Blocked At</th>
+                    <th className="text-right py-2 px-2">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {filtered.map((bu: any) => (
+                    <tr key={bu.id} className="border-b border-border/50">
+                      <td className="py-2 px-2 text-foreground">{bu.email}</td>
+                      <td className="py-2 px-2 text-muted-foreground">{bu.ip_address || "unknown"}</td>
+                      <td className="py-2 px-2 text-destructive">{bu.attempt_count}</td>
+                      <td className="py-2 px-2 text-muted-foreground">{new Date(bu.blocked_at).toLocaleString()}</td>
+                      <td className="py-2 px-2 text-right">
+                        <button
+                          onClick={() => unblockUser.mutate(bu.id)}
+                          className="inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg px-3 py-1.5 text-xs font-mono font-semibold hover:bg-primary/20 transition-colors"
+                        >
+                          <Unlock className="w-3 h-3" />
+                          Unblock
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
 
         {/* Add Admin */}
