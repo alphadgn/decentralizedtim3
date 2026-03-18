@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
-import { ShieldAlert, Trash2, UserPlus, Crown, MailCheck, Ban } from "lucide-react";
+import { ShieldAlert, Trash2, UserPlus, Crown, MailCheck, Ban, Search, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import type { Enums } from "@/integrations/supabase/types";
 
