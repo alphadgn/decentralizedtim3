@@ -25,6 +25,7 @@ export default function SuperAdmin() {
   const queryClient = useQueryClient();
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newApprovedEmail, setNewApprovedEmail] = useState("");
+  const [blockedSearch, setBlockedSearch] = useState("");
 
   const { data: usersWithRoles = [] } = useQuery({
     queryKey: ["super-admin-users"],
