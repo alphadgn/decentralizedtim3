@@ -190,13 +190,12 @@ export default function Profile() {
     <div className="min-h-screen bg-background grid-bg">
       <Header />
       <main className="max-w-4xl mx-auto px-4 md:px-6 py-8 space-y-6">
-        {/* Back to Dashboard */}
+        {/* Back */}
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
         </button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
