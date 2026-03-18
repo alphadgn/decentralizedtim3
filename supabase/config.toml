@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.profile-api]
 verify_jwt = false
+
+[functions.auto-security-scan]
+verify_jwt = false
