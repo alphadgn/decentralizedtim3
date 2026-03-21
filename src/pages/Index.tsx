@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { NtpComparison } from "@/components/NtpComparison";
 import { GlobalClock } from "@/components/GlobalClock";
 import { NetworkMap } from "@/components/NetworkMap";
 import { NetworkStats } from "@/components/NetworkStats";
