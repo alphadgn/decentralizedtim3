@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { NtpComparison } from "@/components/NtpComparison";
 import { GlobalClock } from "@/components/GlobalClock";
 import { NetworkMap } from "@/components/NetworkMap";
 import { NetworkStats } from "@/components/NetworkStats";
@@ -14,6 +15,9 @@ const Index = () => {
     <div className="min-h-screen bg-background grid-bg">
       <Header />
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-6">
+        {/* NTP vs Canonical Time Comparison */}
+        <NtpComparison />
+
         {/* Hero Clock */}
         <GlobalClock />
 
