@@ -122,13 +122,26 @@ export default function SecurityDashboard() {
     queryKey: ["blocked-ips"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ip_rate_limits")
+        .from("rate_limit_buckets")
         .select("*")
         .not("blocked_until", "is", null)
-        .order("created_at", { ascending: false })
+        .order("updated_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return data || [];
+
+      // Bucket keys are "<window>:<kind>:<subject>", e.g. "sustained:ip:1.2.3.4"
+      // or "sustained:key:<uuid>". Blocks are only ever placed on the sustained
+      // window, so surface the caller rather than the raw key.
+      return (data || []).map((bucket) => {
+        const [, kind, ...rest] = bucket.bucket_key.split(":");
+        return {
+          id: bucket.bucket_key,
+          subject: rest.join(":") || bucket.bucket_key,
+          kind: kind === "key" ? "API key" : "IP address",
+          request_count: bucket.request_count,
+          blocked_until: bucket.blocked_until,
+        };
+      });
     },
     enabled: canView,
     refetchInterval: 30000,
@@ -675,8 +688,8 @@ export default function SecurityDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="font-mono text-xs">IP Address</TableHead>
-                    <TableHead className="font-mono text-xs">Endpoint</TableHead>
+                    <TableHead className="font-mono text-xs">Caller</TableHead>
+                    <TableHead className="font-mono text-xs">Type</TableHead>
                     <TableHead className="font-mono text-xs">Requests</TableHead>
                     <TableHead className="font-mono text-xs">Blocked Until</TableHead>
                     <TableHead className="font-mono text-xs">Status</TableHead>
@@ -688,10 +701,10 @@ export default function SecurityDashboard() {
                     return (
                       <TableRow key={ip.id}>
                         <TableCell className="font-mono text-xs text-foreground font-semibold">
-                          {ip.ip_address}
+                          {ip.subject}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {ip.endpoint}
+                          {ip.kind}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-foreground">
                           {ip.request_count}

@@ -1,22 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { verifyPrivyJWT, verifyPrivyTokenLightweight, extractBearerToken, emailToUuid } from "../_shared/verify-privy-jwt.ts";
+import { verifyPrivyJWT, extractBearerToken, emailToUuid } from "../_shared/verify-privy-jwt.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const SUPER_ADMIN_EMAIL = "a1cust0msenterprises@gmail.com";
 const SUPER_ADMIN_PRIVY_SUB = "a7069b27-a45c-4712-8a06-6c87a29bcfbf";
 const CUSTOMER_SERVICE_EMAIL = "decentralizedtim3@gmail.com";
-
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const [, payload] = token.split(".");
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-    return JSON.parse(atob(padded));
-  } catch {
-    return null;
-  }
-}
 
 function extractEmailFromPayload(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -45,6 +33,20 @@ function extractEmailFromPayload(payload: Record<string, unknown> | null): strin
   return null;
 }
 
+/**
+ * SECURITY: JWKS signature verification only — no fallback.
+ *
+ * This endpoint grants roles, so the identity it derives has to be
+ * cryptographically proven. The previous lightweight fallback validated only
+ * `exp` and `iss`, which are attacker-controlled fields inside the *unsigned*
+ * payload: forging `{iss:"privy.io", exp:<future>, email:<founder>}` was enough
+ * to be written into user_roles as super_admin. It fired on any verification
+ * failure, not just JWKS being unreachable.
+ *
+ * If Privy's JWKS endpoint is down we fail closed. verifyPrivyJWT already
+ * serves a stale key cache when it can, so a transient outage does not
+ * immediately lock users out.
+ */
 async function authenticateRequest(req: Request): Promise<{
   authenticated: boolean;
   privySub: string | null;
@@ -53,23 +55,13 @@ async function authenticateRequest(req: Request): Promise<{
   const token = extractBearerToken(req);
   if (!token) return { authenticated: false, privySub: null, tokenEmail: null };
 
-  // Try full JWKS verification first
   const payload = await verifyPrivyJWT(token);
-  if (payload) {
-    return {
-      authenticated: true,
-      privySub: payload.sub ?? null,
-      tokenEmail: extractEmailFromPayload(payload as unknown as Record<string, unknown>),
-    };
-  }
+  if (!payload) return { authenticated: false, privySub: null, tokenEmail: null };
 
-  // Fallback to lightweight check if JWKS unavailable
-  const lightweight = verifyPrivyTokenLightweight(token);
-  const decoded = decodeJwtPayload(token);
   return {
-    authenticated: lightweight.valid,
-    privySub: lightweight.sub,
-    tokenEmail: extractEmailFromPayload(decoded),
+    authenticated: true,
+    privySub: payload.sub ?? null,
+    tokenEmail: extractEmailFromPayload(payload as unknown as Record<string, unknown>),
   };
 }
 
@@ -262,6 +254,18 @@ Deno.serve(async (req) => {
           role: "super_admin",
         });
       }
+    }
+
+    // Record the verified Privy subject -> app user mapping. Privileged routes
+    // resolve identity through this table, so it must only ever be written
+    // from a JWKS-verified token (guaranteed by authenticateRequest above).
+    if (privySub) {
+      await supabase.from("privy_identities").upsert({
+        privy_sub: privySub,
+        user_id: userId,
+        email: canonicalEmail,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "privy_sub" });
     }
 
     const { data: finalRole } = await supabase

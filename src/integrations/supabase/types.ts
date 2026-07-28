@@ -134,6 +134,54 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_buckets: {
+        Row: {
+          blocked_until: string | null
+          bucket_key: string
+          request_count: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          bucket_key: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          bucket_key?: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      privy_identities: {
+        Row: {
+          created_at: string
+          email: string | null
+          privy_sub: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          privy_sub: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          privy_sub?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       node_registrations: {
         Row: {
           created_at: string
