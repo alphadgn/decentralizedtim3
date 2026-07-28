@@ -17,47 +17,88 @@ export type Database = {
       api_keys: {
         Row: {
           created_at: string
+          daily_period_start: string
           expires_at: string | null
           id: string
           key_hash: string
           key_prefix: string
           last_request_at: string | null
+          last_used_ip: string | null
           name: string
+          quota_period_start: string
           requests_month: number
           requests_today: number
+          requires_signature: boolean
           revoked_at: string | null
+          scopes: string[] | null
           tier: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          daily_period_start?: string
           expires_at?: string | null
           id?: string
           key_hash: string
           key_prefix: string
           last_request_at?: string | null
+          last_used_ip?: string | null
           name?: string
+          quota_period_start?: string
           requests_month?: number
           requests_today?: number
+          requires_signature?: boolean
           revoked_at?: string | null
+          scopes?: string[] | null
           tier?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          daily_period_start?: string
           expires_at?: string | null
           id?: string
           key_hash?: string
           key_prefix?: string
           last_request_at?: string | null
+          last_used_ip?: string | null
           name?: string
+          quota_period_start?: string
           requests_month?: number
           requests_today?: number
+          requires_signature?: boolean
           revoked_at?: string | null
+          scopes?: string[] | null
           tier?: string
           user_id?: string
         }
         Relationships: []
+      }
+      api_request_nonces: {
+        Row: {
+          expires_at: string
+          key_id: string | null
+          nonce_hash: string
+        }
+        Insert: {
+          expires_at: string
+          key_id?: string | null
+          nonce_hash: string
+        }
+        Update: {
+          expires_at?: string
+          key_id?: string | null
+          nonce_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_nonces_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       approved_emails: {
         Row: {
@@ -131,54 +172,6 @@ export type Database = {
           ip_address?: string
           request_count?: number
           window_start?: string
-        }
-        Relationships: []
-      }
-      rate_limit_buckets: {
-        Row: {
-          blocked_until: string | null
-          bucket_key: string
-          request_count: number
-          updated_at: string
-          window_start: string
-        }
-        Insert: {
-          blocked_until?: string | null
-          bucket_key: string
-          request_count?: number
-          updated_at?: string
-          window_start?: string
-        }
-        Update: {
-          blocked_until?: string | null
-          bucket_key?: string
-          request_count?: number
-          updated_at?: string
-          window_start?: string
-        }
-        Relationships: []
-      }
-      privy_identities: {
-        Row: {
-          created_at: string
-          email: string | null
-          privy_sub: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          privy_sub: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          privy_sub?: string
-          updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -265,6 +258,30 @@ export type Database = {
           },
         ]
       }
+      privy_identities: {
+        Row: {
+          created_at: string
+          email: string | null
+          privy_sub: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          privy_sub: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          privy_sub?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -289,6 +306,30 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      rate_limit_buckets: {
+        Row: {
+          blocked_until: string | null
+          bucket_key: string
+          request_count: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          bucket_key: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          bucket_key?: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
         }
         Relationships: []
       }
@@ -694,6 +735,28 @@ export type Database = {
       }
     }
     Functions: {
+      authenticate_api_key: {
+        Args: { _key_hash: string }
+        Returns: {
+          auth_status: string
+          key_id: string
+          owner_id: string
+          quota_limit: number
+          quota_reset_at: string
+          requests_month: number
+          requires_signature: boolean
+          scopes: string[]
+          tier: string
+        }[]
+      }
+      block_rate_limit_bucket: {
+        Args: { _bucket_key: string; _seconds: number }
+        Returns: undefined
+      }
+      claim_request_nonce: {
+        Args: { _key_id: string; _nonce_hash: string; _ttl_seconds: number }
+        Returns: boolean
+      }
       compute_security_log_hash: {
         Args: {
           p_api_key_id: string
@@ -711,6 +774,20 @@ export type Database = {
         }
         Returns: string
       }
+      consume_rate_limit: {
+        Args: {
+          _bucket_key: string
+          _cost?: number
+          _limit: number
+          _window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          reset_seconds: number
+          retry_after: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -720,6 +797,11 @@ export type Database = {
       }
       nextval_gmc_seq: { Args: never; Returns: number }
       nextval_trade_seq: { Args: never; Returns: number }
+      prune_api_runtime_state: { Args: never; Returns: undefined }
+      record_api_key_usage: {
+        Args: { _cost?: number; _ip?: string; _key_id: string }
+        Returns: undefined
+      }
       run_hourly_chain_integrity_scan: { Args: never; Returns: Json }
     }
     Enums: {
