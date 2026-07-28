@@ -303,8 +303,8 @@ All API requests require an API key in the Authorization header:
 
 | Tier       | Rate Limit          | Endpoints                         |
 |------------|---------------------|-----------------------------------|
-| Free       | 100,000 req/month   | /time, /nodes, /status, /history  |
-| Pro        | 1,000,000 req/month | All Free + analytics              |
+| Free       | 1,000 req/month     | /time, /nodes, /status, /history  |
+| Pro        | 100,000 req/month   | All Free + analytics              |
 | Enterprise | Unlimited           | All + /time/precision, /order-event, /mev/*, /ledger/* |
 
 ## Error Codes

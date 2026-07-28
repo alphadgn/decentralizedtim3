@@ -16,7 +16,7 @@ const PLANS = [
     period: "/month",
     description: "For developers exploring decentralized time",
     features: [
-      "100,000 API requests/month",
+      "1,000 API requests/month",
       "Standard time endpoint",
       "12 oracle node consensus",
       "Community support",
@@ -34,7 +34,7 @@ const PLANS = [
     period: "/month",
     description: "For teams building production applications",
     features: [
-      "1,000,000 API requests/month",
+      "100,000 API requests/month",
       "All Free endpoints + analytics",
       "Priority node routing",
       "Email support (24h SLA)",

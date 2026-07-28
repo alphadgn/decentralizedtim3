@@ -31,7 +31,13 @@ export interface TierPolicy {
   burst: { limit: number; windowSeconds: number };
   /** Plan-level sustained throughput. */
   sustained: { limit: number; windowSeconds: number };
-  /** Requests per calendar month; -1 means uncapped. */
+  /**
+   * Requests per calendar month; -1 means uncapped.
+   *
+   * Documentation only — the quota is enforced by `authenticate_api_key` in the
+   * database, so this must match the CASE in that function (and the pricing
+   * page) or the published limits will not be the ones applied.
+   */
   monthlyQuota: number;
 }
 
@@ -44,12 +50,12 @@ export const TIER_POLICIES: Record<Tier, TierPolicy> = {
   free: {
     burst:     { limit: 20,  windowSeconds: 5 },
     sustained: { limit: 60,  windowSeconds: 60 },
-    monthlyQuota: 100_000,
+    monthlyQuota: 1_000,
   },
   pro: {
     burst:     { limit: 60,  windowSeconds: 5 },
     sustained: { limit: 300, windowSeconds: 60 },
-    monthlyQuota: 1_000_000,
+    monthlyQuota: 100_000,
   },
   enterprise: {
     burst:     { limit: 200,  windowSeconds: 5 },

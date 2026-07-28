@@ -43,8 +43,11 @@ async function validateApiKey(supabase: any, apiKey: string): Promise<{ valid: b
   if (!keyData) return { valid: false, tier: "none", keyId: null };
 
   // Check rate limits
-  const limits: Record<string, number> = { free: 100000, pro: 1000000, enterprise: -1 };
-  const limit = limits[keyData.tier] ?? 100000;
+  // Mirrors the monthly quotas enforced by authenticate_api_key for the gateway;
+  // an unknown tier falls back to the most restrictive plan rather than the
+  // largest, so a bad tier value cannot hand out a bigger allowance than Free.
+  const limits: Record<string, number> = { free: 1000, pro: 100000, enterprise: -1 };
+  const limit = limits[keyData.tier] ?? 1000;
   if (limit > 0 && keyData.requests_month >= limit) {
     return { valid: false, tier: keyData.tier, keyId: keyData.id };
   }

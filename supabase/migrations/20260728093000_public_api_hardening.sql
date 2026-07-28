@@ -186,9 +186,13 @@ BEGIN
     RETURN;
   END IF;
 
+  -- This CASE is what actually enforces the monthly quota. Keep it in step with
+  -- TIER_POLICIES.monthlyQuota in supabase/functions/_shared/api-rate-limit.ts,
+  -- which publishes these same numbers in the OpenAPI description, and with the
+  -- pricing page. Changing one copy alone makes the docs lie.
   _limit := CASE k.tier
-              WHEN 'free' THEN 100000
-              WHEN 'pro'  THEN 1000000
+              WHEN 'free' THEN 1000
+              WHEN 'pro'  THEN 100000
               ELSE -1                      -- enterprise: uncapped
             END;
 
