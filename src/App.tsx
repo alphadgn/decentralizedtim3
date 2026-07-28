@@ -50,17 +50,8 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/security" element={<SecurityDashboard />} />
             <Route path="/security/scan/:scanId" element={<ScanDetail />} />
-            <Route
-              path="/docs"
-              element={
-                <ExternalRedirect
-                  to={`${
-                    import.meta.env.VITE_SUPABASE_URL ??
-                    `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`
-                  }/functions/v1/api-gateway/docs`}
-                />
-              }
-            />
+            <Route path="/docs" element={<ApiDocs />} />
+
 
             <Route path="*" element={<NotFound />} />
           </Routes>
