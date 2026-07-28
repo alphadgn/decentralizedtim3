@@ -109,7 +109,30 @@ const ApiDocs = () => {
       {!ready && !error && (
         <p className="px-6 py-8 text-sm text-muted-foreground">Loading API reference…</p>
       )}
-      <div id="swagger-ui" className="max-w-[78rem] mx-auto" />
+      {/* Swagger UI ships a light theme; give it a white canvas so its text is legible */}
+      <style>{`
+        .swagger-canvas { background: #ffffff; color: #3b4151; border-radius: 0.75rem; }
+        .swagger-canvas .swagger-ui { color: #3b4151; }
+        .swagger-canvas .swagger-ui .info .title,
+        .swagger-canvas .swagger-ui .info p,
+        .swagger-canvas .swagger-ui .info li,
+        .swagger-canvas .swagger-ui .opblock-tag,
+        .swagger-canvas .swagger-ui .opblock .opblock-summary-path,
+        .swagger-canvas .swagger-ui .opblock .opblock-summary-description,
+        .swagger-canvas .swagger-ui table thead tr th,
+        .swagger-canvas .swagger-ui .model-title,
+        .swagger-canvas .swagger-ui .model,
+        .swagger-canvas .swagger-ui label,
+        .swagger-canvas .swagger-ui h1,
+        .swagger-canvas .swagger-ui h2,
+        .swagger-canvas .swagger-ui h3,
+        .swagger-canvas .swagger-ui h4,
+        .swagger-canvas .swagger-ui h5 { color: #3b4151; }
+        .swagger-canvas .swagger-ui .info a { color: #4990e2; }
+      `}</style>
+      <div className="max-w-[78rem] mx-auto px-2 py-6">
+        <div id="swagger-ui" className="swagger-canvas p-2" />
+      </div>
     </div>
   );
 };
