@@ -19,6 +19,11 @@ import ScanDetail from "./pages/ScanDetail.tsx";
 
 const queryClient = new QueryClient();
 
+const ExternalRedirect = ({ to }: { to: string }) => {
+  window.location.replace(to);
+  return null;
+};
+
 const App = () => (
   <PrivyProvider
     appId="cmmo24bor00mx0ci8zsdmpsq8"
@@ -47,6 +52,14 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/security" element={<SecurityDashboard />} />
             <Route path="/security/scan/:scanId" element={<ScanDetail />} />
+            <Route
+              path="/docs"
+              element={
+                <ExternalRedirect
+                  to={`https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/api-gateway/docs`}
+                />
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
