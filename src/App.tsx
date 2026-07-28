@@ -56,10 +56,14 @@ const App = () => (
               path="/docs"
               element={
                 <ExternalRedirect
-                  to={`https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/api-gateway/docs`}
+                  to={`${
+                    import.meta.env.VITE_SUPABASE_URL ??
+                    `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`
+                  }/functions/v1/api-gateway/docs`}
                 />
               }
             />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
