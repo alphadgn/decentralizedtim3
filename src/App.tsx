@@ -16,13 +16,11 @@ import Profile from "./pages/Profile.tsx";
 import Pricing from "./pages/Pricing.tsx";
 import SecurityDashboard from "./pages/SecurityDashboard.tsx";
 import ScanDetail from "./pages/ScanDetail.tsx";
+import ApiDocs from "./pages/ApiDocs.tsx";
 
 const queryClient = new QueryClient();
 
-const ExternalRedirect = ({ to }: { to: string }) => {
-  window.location.replace(to);
-  return null;
-};
+
 
 const App = () => (
   <PrivyProvider
